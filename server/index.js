@@ -625,7 +625,7 @@ app.delete("/api/users/:id/block", requireNamed, wrap(async (req, res) => {
 }));
 
 app.get("/api/suggestions", wrap(async (req, res) => {
-  const me = await deviceUser(req);
+  const me = (await deviceUser(req)) || { id: 0 };
   const rows = await db
     .prepare(
       `SELECT * FROM users
@@ -642,12 +642,13 @@ app.get("/api/suggestions", wrap(async (req, res) => {
 
 app.post("/api/presence", wrap(async (req, res) => {
   const me = await deviceUser(req);
+  if (!me) return res.json({ ok: true });
   await db.prepare("UPDATE users SET last_seen = ? WHERE id = ?").run(new Date().toISOString(), me.id);
   res.json({ ok: true });
 }));
 
 app.get("/api/online", wrap(async (req, res) => {
-  const me = await deviceUser(req);
+  const me = (await deviceUser(req)) || { id: 0 };
   const cutoff = cutoffStr(3 * 60 * 1000); // active in the last 3 minutes
   const rows = await db
     .prepare(
@@ -658,7 +659,7 @@ app.get("/api/online", wrap(async (req, res) => {
          AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
        ORDER BY last_seen DESC LIMIT 12`
     )
-    .all({ me: me.id, cutoff });
+    .all({ me: me.id });
   res.json({ users: rows.map(publicUser) });
 }));
 
