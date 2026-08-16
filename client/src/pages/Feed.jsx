@@ -6,8 +6,10 @@ import { StoriesBar } from "../components/StoriesBar.jsx";
 import { StoryViewer } from "../components/StoryViewer.jsx";
 import { StoryComposer } from "../components/StoryComposer.jsx";
 import { Avatar } from "../components/Avatar.jsx";
+import { useAuth } from "../auth.jsx";
 
-export function Feed({ view, setView, version = 0 }) {
+export function Feed({ view, setView, version = 0, onCompose }) {
+  const { user } = useAuth();
   const [posts, setPosts] = useState(null);
   const [birthdays, setBirthdays] = useState([]);
   const [storyGroups, setStoryGroups] = useState([]);
@@ -69,6 +71,15 @@ export function Feed({ view, setView, version = 0 }) {
       </div>
 
       <div className="feed-col">
+        <button className="compose-box" onClick={onCompose} aria-label="Create post">
+          <span className="cb-avatar">
+            <img src={user?.avatar} alt={user?.name || "you"} />
+          </span>
+          <span className="cb-text">
+            What's on your mind{user?.name ? `, ${user.name.split(" ")[0]}` : ""}?
+          </span>
+        </button>
+
         <StoriesBar onOpen={openStories} onOpenComposer={() => setComposing(true)} />
 
         {birthdays.length > 0 && (
