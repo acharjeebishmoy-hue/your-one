@@ -1,0 +1,28 @@
+{
+  "name": "social-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Facebook/Instagram-style social app for friends",
+  "type": "module",
+  "scripts": {
+    "postinstall": "npm --prefix client install && npm --prefix client run build",
+    "setup": "npm install",
+    "dev:server": "node server/index.js",
+    "dev:client": "npm --prefix client run dev",
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm --prefix client run build",
+    "start": "node server/index.js",
+    "connect": "node server/connect.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.45.4",
+    "better-sqlite3": "^11.10.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "multer": "^2.0.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
