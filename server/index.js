@@ -626,18 +626,36 @@ app.delete("/api/users/:id/block", requireNamed, wrap(async (req, res) => {
 
 app.get("/api/suggestions", wrap(async (req, res) => {
   const me = (await deviceUser(req)) || { id: 0 };
-  const rows = await db
+  const base = `
+    SELECT u.*,
+      EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = @me AND f.followee_id = u.id) AS is_following
+    FROM users u
+    WHERE name IS NOT NULL AND id != @me
+  `;
+  // preferred: people the viewer hasn't followed yet
+  let rows = await db
     .prepare(
-      `SELECT * FROM users
-       WHERE name IS NOT NULL AND id != @me
-         AND id NOT IN (SELECT followee_id FROM follows WHERE follower_id = @me)
-         AND id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
-         AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
-       ORDER BY (SELECT COUNT(*) FROM follows f WHERE f.followee_id = users.id) DESC
+      `${base}
+       AND u.id NOT IN (SELECT followee_id FROM follows WHERE follower_id = @me)
+       AND u.id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
+       AND u.id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
+       ORDER BY (SELECT COUNT(*) FROM follows f WHERE f.followee_id = u.id) DESC
        LIMIT 9`
     )
     .all({ me: me.id });
-  res.json({ users: rows.map(publicUser) });
+  // followed everyone → still show the crew so the panel never looks empty
+  if (rows.length === 0) {
+    rows = await db
+      .prepare(
+        `${base}
+         AND u.id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
+         AND u.id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
+         ORDER BY u.created_at ASC
+         LIMIT 9`
+      )
+      .all({ me: me.id });
+  }
+  res.json({ users: rows.map((r) => ({ ...publicUser(r), following: !!r.is_following })) });
 }));
 
 app.post("/api/presence", wrap(async (req, res) => {
