@@ -1,0 +1,48 @@
+export function parseDate(iso) {
+  if (!iso) return NaN;
+  const d = new Date(iso);
+  if (!Number.isNaN(d.getTime())) return d.getTime();
+  const withT = String(iso).replace(" ", "T");
+  return new Date(withT.endsWith("Z") ? withT : withT + "Z").getTime();
+}
+
+export function timeAgo(iso) {
+  const then = parseDate(iso);
+  if (Number.isNaN(then)) return "";
+  const s = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  const w = Math.floor(d / 7);
+  if (w < 5) return `${w}w`;
+  return new Date(then).toLocaleDateString();
+}
+
+export function formatDate(iso) {
+  const t = parseDate(iso);
+  return Number.isNaN(t) ? "" : new Date(t).toLocaleString();
+}
+
+export function plural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+export function isOnline(lastSeen, withinMs = 120000) {
+  if (!lastSeen) return false;
+  const t = parseDate(lastSeen);
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < withinMs;
+}
+
+export const REACTION_EMOJI = { like: "👍", love: "❤️", haha: "😂", wow: "😮", sad: "😢", angry: "😡" };
+
+export function reactionSummary(reactions, total) {
+  if (!reactions || total === 0) return null;
+  const order = ["like", "love", "haha", "wow", "sad", "angry"];
+  const emojis = order.filter((t) => (reactions[t] || 0) > 0).map((t) => REACTION_EMOJI[t]);
+  return emojis.length ? `${emojis.join("")} ${total}` : null;
+}
