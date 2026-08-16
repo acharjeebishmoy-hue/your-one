@@ -61,7 +61,7 @@ export function Feed({ view, setView, version = 0, onCompose }) {
 
   return (
     <div className="page">
-      <div className="tabs feed-tabs">
+      <div className="tabs">
         <button className={`tab ${view === "following" ? "active" : ""}`} onClick={() => setView("following")}>
           Following
         </button>
