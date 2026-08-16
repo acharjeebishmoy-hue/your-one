@@ -12,6 +12,35 @@ function Icon({ d }) {
   );
 }
 
+function InviteCard() {
+  const [copied, setCopied] = useState(false);
+  const link = location.origin;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = link;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="side-card">
+      <div className="side-head">📩 Invite a friend</div>
+      <div className="invite-text">Your One is better with the crew — send them the link:</div>
+      <div className="invite-link">{link}</div>
+      <button className="btn block" onClick={copy}>{copied ? "Copied! ✅" : "Copy link"}</button>
+    </div>
+  );
+}
+
 export function DesktopLeft({ onCompose }) {
   const { user } = useAuth();
   const profileTo = user?.name ? `/u/${encodeURIComponent(user.name)}` : "/";
@@ -96,6 +125,8 @@ export function DesktopRight() {
           ))}
         </div>
       )}
+
+      <InviteCard />
     </aside>
   );
 }
