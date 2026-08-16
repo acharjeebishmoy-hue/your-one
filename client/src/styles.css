@@ -1188,5 +1188,7 @@ input, textarea { font: inherit; color: inherit; }
   .sugg-card { width: 128px; padding: 16px 14px; }
 }
 
-/* hide bottom nav on desktop */
-.bottom-nav { display: none; }
+/* hide bottom nav on desktop only */
+@media (min-width: 641px) {
+  .bottom-nav { display: none; }
+}
