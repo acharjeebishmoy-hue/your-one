@@ -1224,13 +1224,7 @@ input, textarea { font: inherit; color: inherit; }
 @media (min-width: 641px) {
   .nav { display: none; }
   .fab { display: none; }
-  /* the Following/Everyone switcher lives in the right panel on desktop */
-  .feed-tabs { display: none; }
 }
-
-/* Following/Everyone switcher inside the right panel (desktop) */
-.side-tabs { display: flex; gap: 6px; }
-.side-tabs .tab { flex: 1; padding: 8px 10px; }
 
 @media (max-width: 640px) {
   .side-rail { display: none; }
