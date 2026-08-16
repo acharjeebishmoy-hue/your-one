@@ -12,6 +12,13 @@ export function HashtagPage() {
     api.get(`/api/posts?hashtag=${encodeURIComponent(tag)}`).then((d) => setPosts(d.posts));
   }, [tag]);
 
+  function upsert(p) {
+    setPosts((ps) => {
+      if (ps.some((x) => x.id === p.id)) return ps.filter((x) => x.id !== p.id);
+      return [p, ...ps]; // freshly shared → prepend
+    });
+  }
+
   return (
     <div className="page">
       <div className="tabs">
@@ -26,7 +33,7 @@ export function HashtagPage() {
             No posts with #{tag} yet. Be the first!
           </div>
         ) : (
-          posts.map((p) => <PostCard key={p.id} post={p} />)
+          posts.map((p) => <PostCard key={p.id} post={p} onDeleted={upsert} />)
         )}
       </div>
     </div>
