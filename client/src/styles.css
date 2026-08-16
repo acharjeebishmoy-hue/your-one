@@ -258,6 +258,86 @@ input, textarea { font: inherit; color: inherit; }
   padding: 24px 16px 80px;
 }
 .feed-col { max-width: 470px; margin: 0 auto; }
+
+/* ---------- desktop 3-column layout (like Facebook) ---------- */
+.app-body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 28px;
+  max-width: 1250px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.app-main { flex: 1; max-width: 640px; min-width: 0; }
+.app-main .page { max-width: none; padding: 24px 4px 80px; }
+
+.side-left {
+  position: sticky;
+  top: 72px;
+  width: 230px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 0;
+}
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.side-link:hover { background: var(--hover); }
+.side-link.active { background: var(--accent-soft); color: var(--accent); }
+.side-create { color: var(--accent); }
+.side-create:hover { background: var(--accent-soft); }
+
+.side-right {
+  position: sticky;
+  top: 72px;
+  width: 280px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+}
+.side-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.side-head { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+.side-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.side-row-name { flex: 1; min-width: 0; }
+.side-row-name a {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.side-row-name a:hover { text-decoration: underline; }
 .tabs {
   display: flex;
   justify-content: center;
@@ -1095,6 +1175,10 @@ input, textarea { font: inherit; color: inherit; }
 /* ---------- mobile (Facebook-style) ---------- */
 @media (max-width: 640px) {
   .page { padding: 14px 0 96px; }
+  .app-body { display: block; padding: 0; }
+  .app-main { max-width: none; }
+  .app-main .page { padding: 14px 0 96px; }
+  .side-left, .side-right { display: none; }
   .feed-col { max-width: none; }
 
   .profile-head { flex-direction: column; text-align: center; gap: 14px; }
