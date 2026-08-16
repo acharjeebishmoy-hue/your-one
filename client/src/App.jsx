@@ -4,6 +4,7 @@ import { api } from "./api.js";
 import { useAuth } from "./auth.jsx";
 import { Navbar } from "./components/Navbar.jsx";
 import { BottomNav } from "./components/BottomNav.jsx";
+import { DesktopLeft, DesktopRight } from "./components/DesktopPanels.jsx";
 import { Composer } from "./components/Composer.jsx";
 import { PostModal } from "./components/PostModal.jsx";
 import { NameModal } from "./components/NameModal.jsx";
@@ -45,16 +46,22 @@ export default function App() {
   return (
     <>
       <Navbar onCompose={() => setComposerOpen(true)} onEditName={() => setNameOpen(true)} />
-      <Routes>
-        <Route path="/" element={<Feed view={feedView} setView={setFeedView} version={feedVersion} onCompose={() => setComposerOpen(true)} />} />
-        <Route path="/explore" element={<Explore />} />
-        <Route path="/search" element={<SearchPage />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/hashtag/:tag" element={<HashtagPage />} />
-        <Route path="/u/:name" element={<Profile />} />
-        <Route path="/p/:id" element={<PostModal />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div className="app-body">
+        <DesktopLeft onCompose={() => setComposerOpen(true)} />
+        <main className="app-main">
+          <Routes>
+            <Route path="/" element={<Feed view={feedView} setView={setFeedView} version={feedVersion} onCompose={() => setComposerOpen(true)} />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/hashtag/:tag" element={<HashtagPage />} />
+            <Route path="/u/:name" element={<Profile />} />
+            <Route path="/p/:id" element={<PostModal />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <DesktopRight />
+      </div>
 
       {composerOpen && (
         <Composer
