@@ -1083,6 +1083,13 @@ input, textarea { font: inherit; color: inherit; }
   .pm-media { background: #000; }
   .search-results { background: var(--card); border-color: var(--border); }
   .toast { border-color: var(--border); }
+  /* gradient-clipped text looks blurry on phones — solid color in dark mode */
+  .logo {
+    background: none;
+    -webkit-background-clip: initial;
+    background-clip: initial;
+    color: var(--accent);
+  }
 }
 
 /* ---------- mobile (Facebook-style) ---------- */
@@ -1100,6 +1107,14 @@ input, textarea { font: inherit; color: inherit; }
 
   /* Facebook-style: clean top bar on phones (bottom nav covers the rest) */
   .nav-actions .icon-btn.desktop-only { display: none; }
+  /* crisp logo text on phones (no gradient clip = no blur) */
+  .logo {
+    background: none;
+    -webkit-background-clip: initial;
+    background-clip: initial;
+    color: var(--accent);
+    font-size: 20px;
+  }
   .mobile-search-btn { display: flex; }
 
   /* compose box like Facebook's "What's on your mind?" */
