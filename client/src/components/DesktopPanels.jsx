@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "./Avatar.jsx";
 import { NotificationsBell } from "./NotificationsBell.jsx";
+import { AppLogo } from "./AppLogo.jsx";
 
 function Icon({ d }) {
   return (
@@ -28,7 +29,7 @@ export function DesktopRail({ onCompose, onEditName }) {
   return (
     <nav className="side-rail" aria-label="Menu">
       <Link to="/" className="rail-logo" title="Your One">
-        <span className="rail-logo-icon">Y</span>
+        <span className="rail-logo-icon"><AppLogo size={38} /></span>
       </Link>
 
       <NavLink to="/" end className="rail-link" title="Home">
