@@ -46,7 +46,7 @@ export default function App() {
     <>
       <Navbar onCompose={() => setComposerOpen(true)} onEditName={() => setNameOpen(true)} />
       <Routes>
-        <Route path="/" element={<Feed view={feedView} setView={setFeedView} version={feedVersion} />} />
+        <Route path="/" element={<Feed view={feedView} setView={setFeedView} version={feedVersion} onCompose={() => setComposerOpen(true)} />} />
         <Route path="/explore" element={<Explore />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/events" element={<Events />} />
