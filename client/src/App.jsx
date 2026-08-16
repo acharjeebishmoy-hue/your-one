@@ -60,7 +60,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-        <DesktopRight />
+        <DesktopRight feedView={feedView} setFeedView={setFeedView} />
       </div>
 
       {composerOpen && (
