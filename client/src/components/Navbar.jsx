@@ -39,6 +39,15 @@ function PlusIcon() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
 export function Navbar({ onCompose, onEditName }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -94,16 +103,19 @@ export function Navbar({ onCompose, onEditName }) {
         </div>
 
         <div className="nav-actions">
-          <NavLink to="/" className="icon-btn" aria-label="Home">
+          <NavLink to="/search" className="icon-btn mobile-search-btn" aria-label="Search">
+            <SearchIcon />
+          </NavLink>
+          <NavLink to="/" className="icon-btn desktop-only" aria-label="Home">
             <HomeIcon />
           </NavLink>
-          <NavLink to="/explore" className="icon-btn" aria-label="Explore">
+          <NavLink to="/explore" className="icon-btn desktop-only" aria-label="Explore">
             <CompassIcon />
           </NavLink>
-          <NavLink to="/events" className="icon-btn" aria-label="Events">
+          <NavLink to="/events" className="icon-btn desktop-only" aria-label="Events">
             <CalendarIcon />
           </NavLink>
-          <button className="icon-btn" onClick={onCompose} aria-label="Create post" title="Create post">
+          <button className="icon-btn desktop-only" onClick={onCompose} aria-label="Create post" title="Create post">
             <PlusIcon />
           </button>
           <NotificationsBell />
