@@ -338,6 +338,20 @@ input, textarea { font: inherit; color: inherit; }
   white-space: nowrap;
 }
 .side-row-name a:hover { text-decoration: underline; }
+.invite-text { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.invite-link {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--soft2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
 .tabs {
   display: flex;
   justify-content: center;
