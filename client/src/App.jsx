@@ -4,7 +4,7 @@ import { api } from "./api.js";
 import { useAuth } from "./auth.jsx";
 import { Navbar } from "./components/Navbar.jsx";
 import { BottomNav } from "./components/BottomNav.jsx";
-import { DesktopLeft, DesktopRight } from "./components/DesktopPanels.jsx";
+import { DesktopRail, DesktopRight } from "./components/DesktopPanels.jsx";
 import { Composer } from "./components/Composer.jsx";
 import { PostModal } from "./components/PostModal.jsx";
 import { NameModal } from "./components/NameModal.jsx";
@@ -47,7 +47,7 @@ export default function App() {
     <>
       <Navbar onEditName={() => setNameOpen(true)} />
       <div className="app-body">
-        <DesktopLeft onCompose={() => setComposerOpen(true)} />
+        <DesktopRail onCompose={() => setComposerOpen(true)} onEditName={() => setNameOpen(true)} />
         <main className="app-main">
           <Routes>
             <Route path="/" element={<Feed view={feedView} setView={setFeedView} version={feedVersion} onCompose={() => setComposerOpen(true)} />} />
@@ -68,13 +68,6 @@ export default function App() {
           onClose={() => setComposerOpen(false)}
           onCreated={() => setFeedVersion((v) => v + 1)}
         />
-      )}
-      {user && (
-        <button className="fab" onClick={() => setComposerOpen(true)} aria-label="Create post" title="Create post">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </button>
       )}
       {nameOpen && <NameModal onClose={() => setNameOpen(false)} />}
       <BottomNav onCompose={() => setComposerOpen(true)} />
