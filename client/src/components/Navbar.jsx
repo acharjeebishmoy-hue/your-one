@@ -1,43 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "./Avatar.jsx";
 import { NotificationsBell } from "./NotificationsBell.jsx";
-
-function HomeIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
-    </svg>
-  );
-}
-
-function CompassIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <circle cx="12" cy="12" r="9" />
-      <path d="m15.5 8.5-2 5-5 2 2-5z" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M8 3v4M16 3v4M3 10h18" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
 
 function SearchIcon() {
   return (
@@ -48,9 +14,8 @@ function SearchIcon() {
   );
 }
 
-export function Navbar({ onCompose, onEditName }) {
+export function Navbar({ onEditName }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -106,18 +71,6 @@ export function Navbar({ onCompose, onEditName }) {
           <NavLink to="/search" className="icon-btn mobile-search-btn" aria-label="Search">
             <SearchIcon />
           </NavLink>
-          <NavLink to="/" className="icon-btn desktop-only" aria-label="Home">
-            <HomeIcon />
-          </NavLink>
-          <NavLink to="/explore" className="icon-btn desktop-only" aria-label="Explore">
-            <CompassIcon />
-          </NavLink>
-          <NavLink to="/events" className="icon-btn desktop-only" aria-label="Events">
-            <CalendarIcon />
-          </NavLink>
-          <button className="icon-btn desktop-only" onClick={onCompose} aria-label="Create post" title="Create post">
-            <PlusIcon />
-          </button>
           <NotificationsBell />
 
           <div style={{ position: "relative" }}>
