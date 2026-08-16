@@ -73,7 +73,7 @@ export function DesktopRail({ onCompose, onEditName }) {
   );
 }
 
-export function DesktopRight() {
+export function DesktopRight({ feedView, setFeedView }) {
   const [suggestions, setSuggestions] = useState([]);
   const [online, setOnline] = useState([]);
   const [following, setFollowing] = useState(new Set());
@@ -94,6 +94,17 @@ export function DesktopRight() {
 
   return (
     <aside className="side-right" aria-label="Suggestions">
+      <div className="side-card">
+        <div className="side-head">Feed</div>
+        <div className="side-tabs">
+          <button className={`tab ${feedView === "following" ? "active" : ""}`} onClick={() => setFeedView("following")}>
+            Following
+          </button>
+          <button className={`tab ${feedView === "everyone" ? "active" : ""}`} onClick={() => setFeedView("everyone")}>
+            Everyone
+          </button>
+        </div>
+      </div>
       {suggestions.length > 0 && (
         <div className="side-card">
           <div className="side-head">👋 People you may know</div>
