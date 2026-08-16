@@ -28,8 +28,7 @@ export function DesktopRail({ onCompose, onEditName }) {
   return (
     <nav className="side-rail" aria-label="Menu">
       <Link to="/" className="rail-logo" title="Your One">
-        <span className="rail-logo-dot" />
-        <span className="rail-logo-text">Your One</span>
+        <span className="rail-logo-icon">Y</span>
       </Link>
 
       <NavLink to="/" end className="rail-link" title="Home">
@@ -71,35 +70,6 @@ export function DesktopRail({ onCompose, onEditName }) {
         <span>More</span>
       </button>
     </nav>
-  );
-}
-
-function InviteCard() {
-  const [copied, setCopied] = useState(false);
-  const link = location.origin;
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(link);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = link;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      ta.remove();
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <div className="side-card">
-      <div className="side-head">📩 Invite a friend</div>
-      <div className="invite-text">Your One is better with the crew — send them the link:</div>
-      <div className="invite-link">{link}</div>
-      <button className="btn block" onClick={copy}>{copied ? "Copied! ✅" : "Copy link"}</button>
-    </div>
   );
 }
 
@@ -160,8 +130,6 @@ export function DesktopRight() {
           ))}
         </div>
       )}
-
-      <InviteCard />
     </aside>
   );
 }
