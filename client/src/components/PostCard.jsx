@@ -44,6 +44,8 @@ export function PostCard({ post, onDeleted }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareText, setShareText] = useState("");
+  const [shareMsg, setShareMsg] = useState("");
+  const [shareErr, setShareErr] = useState("");
   const [previewComments, setPreviewComments] = useState(post.commentCount > 2 ? 2 : post.commentCount);
   const pickerRef = useRef(null);
   const menuRef = useRef(null);
@@ -126,13 +128,53 @@ export function PostCard({ post, onDeleted }) {
     alert("Reported. Thanks for keeping the group safe!");
   }
 
+  const postLink = () => `${location.origin}/p/${post.id}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(postLink());
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = postLink();
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setShareMsg("Link copied! 🔗");
+    setTimeout(() => setShareMsg(""), 2500);
+  }
+
+  async function shareWithFriends() {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${post.author.name}'s post on Your One`,
+          text: post.caption || "Check out this post on Your One",
+          url: postLink(),
+        });
+        setShareMsg("Sent! ✅");
+        setTimeout(() => setShareMsg(""), 2500);
+        return;
+      } catch (e) {
+        if (e.name === "AbortError") return; // user closed the share sheet
+      }
+    }
+    await copyLink();
+  }
+
   async function submitShare() {
     setBusy(true);
+    setShareErr("");
     try {
       const d = await api.post(`/api/posts/${post.id}/share`, { comment: shareText.trim() });
       onDeleted?.(d.post); // prepend the share to the feed
       setSharing(false);
       setShareText("");
+      setShareMsg("Shared to your feed! ✅");
+      setTimeout(() => setShareMsg(""), 2500);
+    } catch (e) {
+      setShareErr(e.message || "Couldn't share — try again.");
     } finally {
       setBusy(false);
     }
@@ -294,6 +336,15 @@ export function PostCard({ post, onDeleted }) {
                   <div>{post.caption}</div>
                 </div>
               </div>
+              <div className="share-actions">
+                <button className="btn share-act" onClick={shareWithFriends} disabled={busy}>
+                  📲 Share with friends
+                </button>
+                <button className="btn ghost share-act" onClick={copyLink} disabled={busy}>
+                  🔗 Copy link
+                </button>
+              </div>
+              <div className="share-note">Or repost it to your feed:</div>
               <textarea
                 className="textarea-input"
                 placeholder="Say something about it… (optional)"
@@ -302,8 +353,10 @@ export function PostCard({ post, onDeleted }) {
                 onChange={(e) => setShareText(e.target.value)}
               />
               <button className="btn block" disabled={busy} onClick={submitShare}>
-                {busy ? "Sharing…" : "Share now"}
+                {busy ? "Sharing…" : "Repost to my feed"}
               </button>
+              {shareMsg && <div className="share-msg">{shareMsg}</div>}
+              {shareErr && <div className="share-err">{shareErr}</div>}
             </div>
           </div>
         </div>
