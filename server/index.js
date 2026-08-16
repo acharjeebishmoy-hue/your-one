@@ -646,6 +646,22 @@ app.post("/api/presence", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+app.get("/api/online", wrap(async (req, res) => {
+  const me = await deviceUser(req);
+  const cutoff = cutoffStr(3 * 60 * 1000); // active in the last 3 minutes
+  const rows = await db
+    .prepare(
+      `SELECT * FROM users
+       WHERE name IS NOT NULL AND id != @me
+         AND last_seen IS NOT NULL AND last_seen > @cutoff
+         AND id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
+         AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
+       ORDER BY last_seen DESC LIMIT 12`
+    )
+    .all({ me: me.id, cutoff });
+  res.json({ users: rows.map(publicUser) });
+}));
+
 // ---------- stories ----------
 
 app.post("/api/stories", requireNamed, upload.single("image"), wrap(async (req, res) => {
