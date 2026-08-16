@@ -45,7 +45,7 @@ export default function App() {
 
   return (
     <>
-      <Navbar onCompose={() => setComposerOpen(true)} onEditName={() => setNameOpen(true)} />
+      <Navbar onEditName={() => setNameOpen(true)} />
       <div className="app-body">
         <DesktopLeft onCompose={() => setComposerOpen(true)} />
         <main className="app-main">
