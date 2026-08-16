@@ -83,8 +83,12 @@ export function PostModal() {
   }
 
   async function share() {
-    await api.post(`/api/posts/${post.id}/share`, { comment: "" });
-    alert("Shared to your feed!");
+    try {
+      await api.post(`/api/posts/${post.id}/share`, { comment: "" });
+      alert("Shared to your feed! ✅");
+    } catch (e) {
+      alert(e.message || "Couldn't share — try again.");
+    }
   }
 
   const top = comments.filter((c) => !c.parentId);
