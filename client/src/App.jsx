@@ -18,7 +18,7 @@ import { Profile } from "./pages/Profile.jsx";
 export default function App() {
   const { user, loading } = useAuth();
   const [composerOpen, setComposerOpen] = useState(false);
-  const [feedView, setFeedView] = useState("following");
+  const [feedView, setFeedView] = useState("everyone");
   const [nameOpen, setNameOpen] = useState(false);
   const [feedVersion, setFeedVersion] = useState(0);
 
@@ -60,7 +60,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-        <DesktopRight feedView={feedView} setFeedView={setFeedView} />
+        <DesktopRight />
       </div>
 
       {composerOpen && (
