@@ -81,6 +81,8 @@ input, textarea { font: inherit; color: inherit; }
   background: var(--grad);
   flex-shrink: 0;
   box-shadow: 0 0 0 3px rgba(15, 138, 77, 0.15);
+  /* optically center the dot with the letters, not the text box */
+  transform: translateY(1px);
 }
 .nav-search {
   flex: 1;
