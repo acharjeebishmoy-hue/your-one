@@ -79,10 +79,16 @@ export function DesktopRight() {
   const [following, setFollowing] = useState(new Set());
 
   useEffect(() => {
-    api.get("/api/suggestions").then((d) => setSuggestions(d.users)).catch(() => {});
+    const loadSuggestions = () =>
+      api.get("/api/suggestions").then((d) => setSuggestions(d.users)).catch(() => {});
     const loadOnline = () => api.get("/api/online").then((d) => setOnline(d.users)).catch(() => {});
+    loadSuggestions();
     loadOnline();
-    const t = setInterval(loadOnline, 30000);
+    // retry every 30s so a cold-start failure heals and the panel never stays empty
+    const t = setInterval(() => {
+      loadSuggestions();
+      loadOnline();
+    }, 30000);
     return () => clearInterval(t);
   }, []);
 
@@ -96,7 +102,9 @@ export function DesktopRight() {
     <aside className="side-right" aria-label="Suggestions">
       {suggestions.length > 0 && (
         <div className="side-card">
-          <div className="side-head">👋 People you may know</div>
+          <div className="side-head">
+            {suggestions.every((u) => u.following) ? "🌱 Your crew" : "👋 People you may know"}
+          </div>
           {suggestions.slice(0, 5).map((u) => (
             <div key={u.id} className="side-row">
               <Link to={`/u/${encodeURIComponent(u.name)}`}>
@@ -105,7 +113,7 @@ export function DesktopRight() {
               <div className="side-row-name">
                 <Link to={`/u/${encodeURIComponent(u.name)}`}>{u.name}</Link>
               </div>
-              {following.has(u.id) ? (
+              {following.has(u.id) || u.following ? (
                 <button className="btn small ghost">✓</button>
               ) : (
                 <button className="btn small" onClick={() => follow(u)}>Follow</button>
