@@ -1025,6 +1025,10 @@ input, textarea { font: inherit; color: inherit; }
 }
 .fab:hover { background: var(--accent-dark); transform: scale(1.06); }
 
+/* mobile-only elements hidden on desktop */
+.mobile-search-btn { display: none; }
+.compose-box { display: none; }
+
 /* misc */
 .spin {
   width: 34px;
@@ -1094,6 +1098,43 @@ input, textarea { font: inherit; color: inherit; }
   .tabs { gap: 6px; margin: 0 12px 14px; }
   .tab { flex: 1; padding: 11px 12px; font-size: 15px; border-radius: 22px; }
 
+  /* Facebook-style: clean top bar on phones (bottom nav covers the rest) */
+  .nav-actions .icon-btn.desktop-only { display: none; }
+  .mobile-search-btn { display: flex; }
+
+  /* compose box like Facebook's "What's on your mind?" */
+  .compose-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 12px 14px;
+    padding: 8px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 26px;
+    cursor: pointer;
+    text-align: left;
+    width: calc(100% - 24px);
+  }
+  .compose-box .cb-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex: none;
+    border: 2px solid var(--accent);
+  }
+  .compose-box .cb-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .compose-box .cb-text {
+    flex: 1;
+    color: var(--muted);
+    font-size: 15px;
+    padding: 0 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   /* post cards edge to edge */
   .post { border-radius: 0; border-left: none; border-right: none; }
   .post-head { padding: 12px 12px; }
@@ -1159,8 +1200,8 @@ input, textarea { font: inherit; color: inherit; }
   .bn-item.active .bn-avatar { border-color: var(--accent); }
   .bn-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-  /* FAB sits above the bottom nav */
-  .fab { bottom: calc(78px + env(safe-area-inset-bottom)); }
+  /* no floating + on phones — compose box + bottom-nav Create cover it */
+  .fab { display: none; }
 
   /* mobile search page */
   .search-page-box { padding: 0 12px 12px; }
