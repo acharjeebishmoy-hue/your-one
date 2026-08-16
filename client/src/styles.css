@@ -799,6 +799,19 @@ input, textarea { font: inherit; color: inherit; }
 .share-preview img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
 .share-preview > div { min-width: 0; }
 .share-preview b { display: block; }
+.share-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.share-act { flex: 1; min-width: 140px; }
+.share-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.share-msg { color: var(--accent); font-size: 14px; font-weight: 600; }
+.share-err { color: #e5484d; font-size: 14px; }
 
 /* ---------- threaded comments ---------- */
 .comment-thread { display: flex; flex-direction: column; gap: 4px; }
