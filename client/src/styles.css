@@ -259,7 +259,7 @@ input, textarea { font: inherit; color: inherit; }
   margin: 0 auto;
   padding: 24px 16px 80px;
 }
-.feed-col { max-width: 470px; margin: 0 auto; }
+.feed-col { max-width: 560px; margin: 0 auto; }
 
 /* ---------- desktop 3-column layout (like Facebook) ---------- */
 .app-body {
@@ -271,7 +271,7 @@ input, textarea { font: inherit; color: inherit; }
   margin: 0 auto;
   padding: 0 16px;
 }
-.app-main { flex: 1; max-width: 640px; min-width: 0; }
+.app-main { flex: 1; max-width: 720px; min-width: 0; }
 .app-main .page { max-width: none; padding: 24px 4px 80px; }
 
 /* slim Instagram-style icon rail (desktop) */
@@ -989,6 +989,19 @@ input, textarea { font: inherit; color: inherit; }
   max-width: 100vw;
   max-height: 100vh;
   object-fit: contain;
+}
+.sv-text-only {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 48px;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #10b981, #047857);
 }
 .sv-caption {
   position: absolute;
