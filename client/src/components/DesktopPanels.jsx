@@ -1,6 +1,7 @@
 import { NavLink, Link } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { NotificationsBell } from "./NotificationsBell.jsx";
+import { MessagesBadge } from "./MessageBadge.jsx";
 
 function Icon({ d }) {
   return (
@@ -16,6 +17,7 @@ const ICONS = {
   events: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
   search: "M21 21l-4.35-4.35M11 19a8 8 0 1 1 8-8 8 8 0 0 1-8 8z",
   create: "M12 5v14M5 12h14",
+  messages: "M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z",
 };
 
 export function DesktopRail({ onCompose, onEditName }) {
@@ -48,6 +50,13 @@ export function DesktopRail({ onCompose, onEditName }) {
       <div className="rail-bell">
         <NotificationsBell />
       </div>
+      <NavLink to="/messages" className="rail-link" title="Messages">
+        <span className="rail-icon-wrap">
+          <Icon d={ICONS.messages} />
+          <MessagesBadge />
+        </span>
+        <span>Messages</span>
+      </NavLink>
 
       <button className="rail-link rail-create" onClick={onCompose} title="Create post">
         <Icon d={ICONS.create} />
