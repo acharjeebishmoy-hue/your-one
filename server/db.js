@@ -356,11 +356,11 @@ export async function initDb() {
       const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
       if (!cols.includes(column)) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
     };
-    ensureCol("notifications", "body", "TEXT");
-    ensureCol("users", "birthday", "TEXT");
-    ensureCol("users", "last_seen", "TEXT");
-    ensureCol("posts", "origin_post_id", "INTEGER REFERENCES posts(id) ON DELETE SET NULL");
-    ensureCol("posts", "video", "TEXT");
+    ensureCol("notifications", "body", "body TEXT");
+    ensureCol("users", "birthday", "birthday TEXT");
+    ensureCol("users", "last_seen", "last_seen TEXT");
+    ensureCol("posts", "origin_post_id", "origin_post_id INTEGER REFERENCES posts(id) ON DELETE SET NULL");
+    ensureCol("posts", "video", "video TEXT");
     ensureCol("comments", "parent_id", "INTEGER REFERENCES comments(id) ON DELETE CASCADE");
     ensureCol("likes", "type", "TEXT NOT NULL DEFAULT 'like'");
   }
