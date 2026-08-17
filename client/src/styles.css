@@ -333,6 +333,8 @@ input, textarea { font: inherit; color: inherit; }
 .rail-more { font-size: 10px; }
 .rail-bell { display: flex; justify-content: center; width: 100%; }
 .rail-bell .icon-btn { padding: 8px; }
+.rail-icon-wrap { position: relative; display: inline-flex; }
+.rail-icon-wrap .badge { top: -4px; right: -6px; }
 /* notifications dropdown opens to the right of the rail, not off-screen */
 .side-rail .dropdown { right: auto; left: calc(100% + 10px); top: 0; }
 
@@ -1355,6 +1357,8 @@ input, textarea { font: inherit; color: inherit; }
     -webkit-tap-highlight-color: transparent;
   }
   .bn-item.active { color: var(--accent); }
+  .bn-icon-wrap { position: relative; display: inline-flex; }
+  .bn-icon-wrap .badge { top: -3px; right: -6px; }
   .bn-label { font-size: 10px; }
   .bn-avatar {
     width: 26px;
