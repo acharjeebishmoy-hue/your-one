@@ -567,6 +567,120 @@ app.post("/api/notifications/read", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- messages (private chat) ----------
+
+async function namedUser(req, res) {
+  const u = await deviceUser(req);
+  if (!u?.name) {
+    res.status(401).json({ error: "Pick a name first" });
+    return null;
+  }
+  return u;
+}
+
+// Conversation list: everyone I have a thread with + last message + unread count
+app.get("/api/conversations", wrap(async (req, res) => {
+  const me = await namedUser(req, res);
+  if (!me) return;
+  const rows = await db
+    .prepare(
+      `SELECT u.id, u.name, u.avatar, u.bio, u.last_seen,
+         (SELECT m.body FROM messages m
+           WHERE (m.from_id = @me AND m.to_id = u.id) OR (m.from_id = u.id AND m.to_id = @me)
+           ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_body,
+         (SELECT m.created_at FROM messages m
+           WHERE (m.from_id = @me AND m.to_id = u.id) OR (m.from_id = u.id AND m.to_id = @me)
+           ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_at,
+         (SELECT COUNT(*) FROM messages m WHERE m.from_id = u.id AND m.to_id = @me AND m.read = 0) AS unread
+       FROM users u
+       WHERE u.id != @me AND u.name IS NOT NULL
+         AND EXISTS (SELECT 1 FROM messages m
+           WHERE (m.from_id = @me AND m.to_id = u.id) OR (m.from_id = u.id AND m.to_id = @me))
+       ORDER BY last_at DESC`
+    )
+    .all({ me: me.id });
+  res.json({ users: rows.map((r) => ({ ...publicUser(r), lastBody: r.last_body, lastAt: r.last_at, unread: Number(r.unread || 0) })) });
+}));
+
+// Unread count for the nav badge (must be registered BEFORE /api/messages/:userId)
+app.get("/api/messages/unread", wrap(async (req, res) => {
+  const me = await deviceUser(req);
+  if (!me) return res.json({ count: 0 });
+  const r = await db.prepare("SELECT COUNT(*) AS c FROM messages WHERE to_id = ? AND read = 0").get(me.id);
+  res.json({ count: Number(r.c || 0) });
+}));
+
+// Message thread with one person (also marks their messages to me as read)
+app.get("/api/messages/:userId", wrap(async (req, res) => {
+  const me = await namedUser(req, res);
+  if (!me) return;
+  const otherId = Number(req.params.userId);
+  const other = await db.prepare("SELECT * FROM users WHERE id = ? AND name IS NOT NULL").get(otherId);
+  if (!other) return res.status(404).json({ error: "User not found" });
+  await db.prepare("UPDATE messages SET read = 1 WHERE from_id = ? AND to_id = ? AND read = 0").run(otherId, me.id);
+  const rows = await db
+    .prepare(
+      `SELECT m.id, m.from_id, m.to_id, m.body, m.read, m.created_at, u.name AS from_name, u.avatar AS from_avatar
+       FROM messages m JOIN users u ON u.id = m.from_id
+       WHERE (m.from_id = @me AND m.to_id = @other) OR (m.from_id = @other AND m.to_id = @me)
+       ORDER BY m.created_at ASC, m.id ASC`
+    )
+    .all({ me: me.id, other: otherId });
+  res.json({
+    user: publicUser(other),
+    messages: rows.map((m) => ({
+      id: m.id,
+      fromId: m.from_id,
+      toId: m.to_id,
+      body: m.body,
+      read: !!m.read,
+      createdAt: m.created_at,
+      fromName: m.from_name,
+      fromAvatar: m.from_avatar || `/api/avatar/${m.from_name || m.from_id}`,
+    })),
+  });
+}));
+
+// Send a message
+app.post("/api/messages", wrap(async (req, res) => {
+  const me = await namedUser(req, res);
+  if (!me) return;
+  const toId = Number(req.body?.toId);
+  const body = String(req.body?.body || "").trim().slice(0, 2000);
+  if (!toId || !body) return res.status(400).json({ error: "Message is empty" });
+  if (toId === me.id) return res.status(400).json({ error: "You can't message yourself" });
+  const other = await db.prepare("SELECT * FROM users WHERE id = ? AND name IS NOT NULL").get(toId);
+  if (!other) return res.status(404).json({ error: "User not found" });
+  const blocked = await db
+    .prepare("SELECT 1 FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)")
+    .get(me.id, toId, toId, me.id);
+  if (blocked) return res.status(403).json({ error: "You can't message this person" });
+  const info = await db
+    .prepare("INSERT INTO messages (from_id, to_id, body) VALUES (?, ?, ?) RETURNING id")
+    .run(me.id, toId, body);
+  await db
+    .prepare("INSERT INTO notifications (user_id, actor_id, type, post_id, body) VALUES (?, ?, 'message', NULL, ?)")
+    .run(toId, me.id, body.slice(0, 140));
+  const row = await db
+    .prepare(
+      `SELECT m.id, m.from_id, m.to_id, m.body, m.read, m.created_at, u.name AS from_name, u.avatar AS from_avatar
+       FROM messages m JOIN users u ON u.id = m.from_id WHERE m.id = ?`
+    )
+    .get(info.lastInsertRowid);
+  res.json({
+    message: {
+      id: row.id,
+      fromId: row.from_id,
+      toId: row.to_id,
+      body: row.body,
+      read: !!row.read,
+      createdAt: row.created_at,
+      fromName: row.from_name,
+      fromAvatar: row.from_avatar || `/api/avatar/${row.from_name || row.from_id}`,
+    },
+  });
+}));
+
 // ---------- shares ----------
 
 app.post("/api/posts/:id/share", requireNamed, wrap(async (req, res) => {
