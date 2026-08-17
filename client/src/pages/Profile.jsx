@@ -96,6 +96,9 @@ export function Profile() {
                 <button className={`btn small ${isFollowing ? "ghost" : ""}`} onClick={toggleFollow}>
                   {isFollowing ? "Following ✓" : "Follow"}
                 </button>
+                <button className="btn small ghost" onClick={() => navigate(`/messages?to=${profile.id}`)}>
+                  Message
+                </button>
                 <button className="btn small ghost danger-text" onClick={block}>Block</button>
               </>
             )}
