@@ -4,7 +4,7 @@ import { api } from "./api.js";
 import { useAuth } from "./auth.jsx";
 import { Navbar } from "./components/Navbar.jsx";
 import { BottomNav } from "./components/BottomNav.jsx";
-import { DesktopRail, DesktopRight } from "./components/DesktopPanels.jsx";
+import { DesktopRail } from "./components/DesktopPanels.jsx";
 import { Composer } from "./components/Composer.jsx";
 import { PostModal } from "./components/PostModal.jsx";
 import { NameModal } from "./components/NameModal.jsx";
@@ -60,7 +60,6 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-        <DesktopRight />
       </div>
 
       {composerOpen && (
