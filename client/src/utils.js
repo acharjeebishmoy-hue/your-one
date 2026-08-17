@@ -1,9 +1,14 @@
 export function parseDate(iso) {
   if (!iso) return NaN;
-  const d = new Date(iso);
+  const s = String(iso);
+  // SQLite stores "YYYY-MM-DD HH:MM:SS" as UTC — V8 would misread it as
+  // local time, so detect the space-form and force UTC before anything else.
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+    return new Date(s.replace(" ", "T") + "Z").getTime();
+  }
+  const d = new Date(s);
   if (!Number.isNaN(d.getTime())) return d.getTime();
-  const withT = String(iso).replace(" ", "T");
-  return new Date(withT.endsWith("Z") ? withT : withT + "Z").getTime();
+  return NaN;
 }
 
 export function timeAgo(iso) {
