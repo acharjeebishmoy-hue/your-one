@@ -1,8 +1,5 @@
-import { useEffect, useState } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
-import { Avatar } from "./Avatar.jsx";
 import { NotificationsBell } from "./NotificationsBell.jsx";
 
 function Icon({ d }) {
@@ -73,71 +70,3 @@ export function DesktopRail({ onCompose, onEditName }) {
   );
 }
 
-export function DesktopRight() {
-  const [suggestions, setSuggestions] = useState([]);
-  const [online, setOnline] = useState([]);
-  const [following, setFollowing] = useState(new Set());
-
-  useEffect(() => {
-    const loadSuggestions = () =>
-      api.get("/api/suggestions").then((d) => setSuggestions(d.users)).catch(() => {});
-    const loadOnline = () => api.get("/api/online").then((d) => setOnline(d.users)).catch(() => {});
-    loadSuggestions();
-    loadOnline();
-    // retry every 30s so a cold-start failure heals and the panel never stays empty
-    const t = setInterval(() => {
-      loadSuggestions();
-      loadOnline();
-    }, 30000);
-    return () => clearInterval(t);
-  }, []);
-
-  async function follow(u) {
-    await api.post(`/api/users/${u.id}/follow`);
-    setFollowing((f) => new Set(f).add(u.id));
-    setSuggestions((s) => s.filter((x) => x.id !== u.id));
-  }
-
-  return (
-    <aside className="side-right" aria-label="Suggestions">
-      {suggestions.length > 0 && (
-        <div className="side-card">
-          <div className="side-head">
-            {suggestions.every((u) => u.following) ? "🌱 Your crew" : "👋 People you may know"}
-          </div>
-          {suggestions.slice(0, 5).map((u) => (
-            <div key={u.id} className="side-row">
-              <Link to={`/u/${encodeURIComponent(u.name)}`}>
-                <Avatar src={u.avatar} username={u.name} size={36} ring={false} />
-              </Link>
-              <div className="side-row-name">
-                <Link to={`/u/${encodeURIComponent(u.name)}`}>{u.name}</Link>
-              </div>
-              {following.has(u.id) || u.following ? (
-                <button className="btn small ghost">✓</button>
-              ) : (
-                <button className="btn small" onClick={() => follow(u)}>Follow</button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {online.length > 0 && (
-        <div className="side-card">
-          <div className="side-head">🟢 Active now</div>
-          {online.map((u) => (
-            <div key={u.id} className="side-row">
-              <Link to={`/u/${encodeURIComponent(u.name)}`}>
-                <Avatar src={u.avatar} username={u.name} size={36} ring={false} online />
-              </Link>
-              <div className="side-row-name">
-                <Link to={`/u/${encodeURIComponent(u.name)}`}>{u.name}</Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </aside>
-  );
-}
