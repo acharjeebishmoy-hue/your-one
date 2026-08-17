@@ -18,12 +18,12 @@ export function StoryComposer({ onClose, onCreated }) {
   }
 
   async function submit() {
-    if (busy || !fileRef.current?.files?.[0]) return;
+    if (busy || (!fileRef.current?.files?.[0] && !caption.trim())) return;
     setBusy(true);
     setError("");
     const fd = new FormData();
     fd.append("caption", caption);
-    fd.append("image", fileRef.current.files[0]);
+    if (fileRef.current?.files?.[0]) fd.append("image", fileRef.current.files[0]);
     try {
       await api.post("/api/stories", fd);
       onCreated?.();
@@ -61,7 +61,7 @@ export function StoryComposer({ onClose, onCreated }) {
             maxLength={200}
             onChange={(e) => setCaption(e.target.value)}
           />
-          <button className="btn block" disabled={busy || !preview} onClick={submit}>
+          <button className="btn block" disabled={busy || (!preview && !caption.trim())} onClick={submit}>
             {busy ? "Posting…" : "Share to story"}
           </button>
           <div className="hint">Your story disappears after 24 hours ⏳</div>
