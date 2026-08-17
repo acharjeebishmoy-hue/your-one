@@ -77,8 +77,14 @@ export function StoryViewer({ groups, startGroup, onClose }) {
       </div>
 
       <div className="sv-media">
-        <img src={story.image} alt={story.caption || "story"} />
-        {story.caption && <div className="sv-caption">{story.caption}</div>}
+        {story.image ? (
+          <>
+            <img src={story.image} alt={story.caption || "story"} />
+            {story.caption && <div className="sv-caption">{story.caption}</div>}
+          </>
+        ) : (
+          <div className="sv-text-only">{story.caption || "✨"}</div>
+        )}
       </div>
 
       <button className="sv-zone left" onClick={() => go(-1)} aria-label="Previous" />
