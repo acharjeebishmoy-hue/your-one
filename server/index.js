@@ -331,7 +331,7 @@ app.get("/api/search", wrap(async (req, res) => {
   const me = await deviceUser(req);
   const rows = await db
     .prepare(
-      `SELECT * FROM users WHERE name ILIKE ? AND name IS NOT NULL
+      `SELECT * FROM users WHERE LOWER(name) LIKE LOWER(?) AND name IS NOT NULL
          AND id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
          AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
        ORDER BY name LIMIT 12`
@@ -677,16 +677,16 @@ app.get("/api/online", wrap(async (req, res) => {
          AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
        ORDER BY last_seen DESC LIMIT 12`
     )
-    .all({ me: me.id });
+    .all({ me: me.id, cutoff });
   res.json({ users: rows.map(publicUser) });
 }));
 
 // ---------- stories ----------
 
 app.post("/api/stories", requireNamed, upload.single("image"), wrap(async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "A photo is required for a story" });
   const caption = String(req.body.caption || "").trim().slice(0, 200);
-  const image = await saveImage(req.file.buffer, req.file.originalname, req.file.mimetype);
+  if (!req.file && !caption) return res.status(400).json({ error: "Add a photo or a caption" });
+  const image = req.file ? await saveImage(req.file.buffer, req.file.originalname, req.file.mimetype) : "";
   const info = await db
     .prepare("INSERT INTO stories (user_id, image, caption) VALUES (?, ?, ?) RETURNING id")
     .run(req.user.id, image, caption);
