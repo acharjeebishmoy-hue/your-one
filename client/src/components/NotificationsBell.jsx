@@ -14,6 +14,7 @@ function notifText(n) {
   if (n.type === "share") return <span>{who} shared your post</span>;
   if (n.type === "reply") return <span>{who} replied to your comment{n.body ? <>: “{n.body}”</> : ""}</span>;
   if (n.type === "event_rsvp") return <span>{who} {n.body || "is going to your event"}</span>;
+  if (n.type === "message") return <span>{who} messaged you</span>;
   return (
     <span>
       {who} commented{n.body ? <>: “{n.body}”</> : " on your post"}
