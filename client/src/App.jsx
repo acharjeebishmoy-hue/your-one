@@ -11,6 +11,7 @@ import { NameModal } from "./components/NameModal.jsx";
 import { Feed } from "./pages/Feed.jsx";
 import { Explore } from "./pages/Explore.jsx";
 import { SearchPage } from "./pages/SearchPage.jsx";
+import { MessagesPage } from "./pages/MessagesPage.jsx";
 import { Events } from "./pages/Events.jsx";
 import { HashtagPage } from "./pages/HashtagPage.jsx";
 import { Profile } from "./pages/Profile.jsx";
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/" element={<Feed view={feedView} setView={setFeedView} version={feedVersion} onCompose={() => setComposerOpen(true)} />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
             <Route path="/events" element={<Events />} />
             <Route path="/hashtag/:tag" element={<HashtagPage />} />
             <Route path="/u/:name" element={<Profile />} />
