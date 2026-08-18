@@ -17,8 +17,12 @@ export function Explore() {
   }, []);
 
   async function follow(u) {
-    await api.post(`/api/users/${u.id}/follow`);
-    setFollowing((f) => new Set(f).add(u.id));
+    try {
+      await api.post(`/api/users/${u.id}/follow`);
+      setFollowing((f) => new Set(f).add(u.id));
+    } catch {
+      /* name required — the app prompts for it */
+    }
   }
 
   return (
