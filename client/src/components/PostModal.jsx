@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
@@ -17,6 +17,17 @@ export function PostModal() {
   const [replyTo, setReplyTo] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [shareMsg, setShareMsg] = useState("");
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function onClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
 
   useEffect(() => {
     api
@@ -93,13 +104,38 @@ export function PostModal() {
   }
 
   async function share() {
+    setShareMsg("");
     try {
       await api.post(`/api/posts/${post.id}/share`, { comment: "" });
-      alert("Shared to your feed! ✅");
+      setShareMsg("Shared to your feed! ✅");
+      setTimeout(() => setShareMsg(""), 2500);
     } catch (e) {
-      alert(e.message || "Couldn't share — try again.");
+      setShareMsg("⚠️ " + (e.message || "Couldn't share — try again."));
     }
   }
+
+  async function deletePost() {
+    if (!confirm("Delete this post?")) return;
+    try {
+      await api.del(`/api/posts/${post.id}`);
+      window.dispatchEvent(new CustomEvent("post-deleted", { detail: post.id }));
+      navigate(-1);
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function reportPost() {
+    if (!confirm("Report this post?")) return;
+    try {
+      await api.post(`/api/posts/${post.id}/report`, { reason: "reported by user" });
+      alert("Reported. Thanks for keeping the group safe!");
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  const isMine = user?.id === post.author.id;
 
   const top = comments.filter((c) => !c.parentId);
   const repliesOf = (pid) => comments.filter((c) => c.parentId === pid);
@@ -125,6 +161,18 @@ export function PostModal() {
             <div>
               <Link to={`/u/${encodeURIComponent(post.author.name)}`} className="ph-name">{post.author.name}</Link>
               <div className="ph-user">@{post.author.name} · {timeAgo(post.createdAt)}</div>
+            </div>
+            <div style={{ position: "relative", marginLeft: "auto" }} ref={menuRef}>
+              <button className="ph-del" title="More" onClick={() => setMenuOpen((o) => !o)}>⋯</button>
+              {menuOpen && (
+                <div className="dropdown menu-drop" style={{ width: 170, right: 0, left: "auto" }}>
+                  {isMine ? (
+                    <button onClick={deletePost}>🗑 Delete post</button>
+                  ) : (
+                    <button onClick={reportPost}>🚩 Report post</button>
+                  )}
+                </div>
+              )}
             </div>
             <button className="modal-close" onClick={() => navigate(-1)}>✕</button>
           </div>
@@ -184,6 +232,7 @@ export function PostModal() {
                 <ShareIcon />
               </button>
             </div>
+            {shareMsg && <div className={`share-msg ${shareMsg.startsWith("⚠️") ? "share-err" : ""}`}>{shareMsg}</div>}
             {summary && (
               <div className="post-reactions">
                 <span className="pr-emoji">{summary}</span>
