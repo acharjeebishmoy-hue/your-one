@@ -7,6 +7,7 @@ import { BottomNav } from "./components/BottomNav.jsx";
 import { DesktopRail } from "./components/DesktopPanels.jsx";
 import { Composer } from "./components/Composer.jsx";
 import { MessageToast } from "./components/MessageToast.jsx";
+import { PushBanner } from "./components/PushBanner.jsx";
 import { PostModal } from "./components/PostModal.jsx";
 import { NameModal } from "./components/NameModal.jsx";
 import { Feed } from "./pages/Feed.jsx";
@@ -48,6 +49,7 @@ export default function App() {
   return (
     <>
       <Navbar onEditName={() => setNameOpen(true)} />
+      <PushBanner />
       <div className="app-body">
         <DesktopRail onCompose={() => setComposerOpen(true)} onEditName={() => setNameOpen(true)} />
         <main className="app-main">
