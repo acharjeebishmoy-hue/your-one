@@ -9,7 +9,10 @@ export function HashtagPage() {
 
   useEffect(() => {
     setPosts(null);
-    api.get(`/api/posts?hashtag=${encodeURIComponent(tag)}`).then((d) => setPosts(d.posts));
+    api
+      .get(`/api/posts?hashtag=${encodeURIComponent(tag)}`)
+      .then((d) => setPosts(d.posts))
+      .catch(() => setPosts([]));
   }, [tag]);
 
   function upsert(p) {
