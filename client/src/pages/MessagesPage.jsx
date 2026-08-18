@@ -27,6 +27,30 @@ function blobToDataUrl(blob) {
   });
 }
 
+// Resize + compress a photo so chat stays fast and light (like WhatsApp does).
+function fileToResizedDataUrl(file, maxDim = 1600, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Couldn't read that image"));
+    };
+    img.src = url;
+  });
+}
+
 export function MessagesPage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -46,6 +70,7 @@ export function MessagesPage() {
   const openedParam = useRef(null);
   const recRef = useRef(null); // { mediaRecorder, chunks, timer }
   const inputRef = useRef(null);
+  const photoRef = useRef(null);
 
   // Auto-open a chat when arriving with ?to=<id> (e.g. from a notification)
   useEffect(() => {
@@ -147,6 +172,26 @@ export function MessagesPage() {
     inputRef.current?.focus();
   }
 
+  async function sendPhoto(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow picking the same file again
+    if (!file || !active?.id) return;
+    setSending(true);
+    try {
+      const url = await fileToResizedDataUrl(file);
+      if (url.length > 4_000_000) {
+        // Still too big — shrink harder.
+        const small = await fileToResizedDataUrl(file, 900, 0.7);
+        await send("image", small);
+      } else {
+        await send("image", url);
+      }
+    } catch (err) {
+      alert(err.message || "Couldn't send that photo");
+    }
+    setSending(false);
+  }
+
   async function toggleRecord() {
     if (recording) {
       // Stop and send
@@ -215,6 +260,7 @@ export function MessagesPage() {
   function lastPreview(c) {
     if (c.lastKind === "voice") return "🎤 Voice message";
     if (c.lastKind === "sticker") return `${c.lastBody} sticker`;
+    if (c.lastKind === "image") return "📷 Photo";
     return c.lastBody || "";
   }
 
@@ -305,7 +351,14 @@ export function MessagesPage() {
                   return (
                     <div key={m.id} className={`msg-row ${mine ? "mine" : ""}`}>
                       {!mine && <Avatar src={m.fromAvatar} username={m.fromName} size={28} ring={false} />}
-                      {m.kind === "voice" ? (
+                      {m.kind === "image" ? (
+                        <div className="bubble img-bubble">
+                          <a href={m.body} target="_blank" rel="noreferrer">
+                            <img className="chat-img" src={m.body} alt="Shared photo" loading="lazy" />
+                          </a>
+                          <div className="bubble-time">{timeAgo(m.createdAt)}</div>
+                        </div>
+                      ) : m.kind === "voice" ? (
                         <div className="bubble voice-bubble">
                           <audio controls preload="metadata" src={m.body} />
                           <div className="bubble-time">{timeAgo(m.createdAt)}</div>
@@ -373,6 +426,21 @@ export function MessagesPage() {
                     >
                       🎤
                     </button>
+                    <button
+                      className="chat-tool"
+                      onClick={() => photoRef.current?.click()}
+                      disabled={sending}
+                      title="Photo"
+                    >
+                      📷
+                    </button>
+                    <input
+                      ref={photoRef}
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={sendPhoto}
+                    />
                     <input
                       ref={inputRef}
                       className="text-input"
