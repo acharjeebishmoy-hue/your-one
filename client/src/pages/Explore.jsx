@@ -16,6 +16,15 @@ export function Explore() {
     api.get("/api/suggestions").then((d) => setSuggestions(d.users)).catch(() => {});
   }, []);
 
+  // A post deleted from the full-screen view disappears from the grid too.
+  useEffect(() => {
+    function onDeleted(e) {
+      setPosts((ps) => (ps || []).filter((p) => p.id !== e.detail));
+    }
+    window.addEventListener("post-deleted", onDeleted);
+    return () => window.removeEventListener("post-deleted", onDeleted);
+  }, []);
+
   async function follow(u) {
     try {
       await api.post(`/api/users/${u.id}/follow`);
