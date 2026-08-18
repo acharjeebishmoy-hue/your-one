@@ -17,7 +17,12 @@ export function PushToggle() {
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
-      return sub ? "on" : "off";
+      if (!sub) return "off";
+      // The browser has a subscription — but is it one the server can actually deliver?
+      // (It may be stale, e.g. created with older push keys.) Only show "on" if the
+      // server still knows this exact endpoint.
+      const d = await api.post("/api/push/status", { endpoint: sub.endpoint }).catch(() => null);
+      return d && d.on ? "on" : "off";
     } catch {
       return "off";
     }
@@ -44,14 +49,21 @@ export function PushToggle() {
         return;
       }
       const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
       const { publicKey } = await api.get("/api/push/vapid-key");
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: publicKey,
-        });
+      // Drop any old subscription first — if it was created with older push keys,
+      // reusing it would silently fail forever. A fresh one always matches.
+      const old = await reg.pushManager.getSubscription();
+      if (old) {
+        try {
+          await old.unsubscribe();
+        } catch {
+          /* keep going — subscribe() below replaces it anyway */
+        }
       }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: publicKey,
+      });
       await api.post("/api/push/subscribe", {
         endpoint: sub.endpoint,
         p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.getKey("p256dh")))),
