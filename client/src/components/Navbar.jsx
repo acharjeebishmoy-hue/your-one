@@ -18,11 +18,16 @@ export function Navbar({ onEditName }) {
   const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
+  const [searched, setSearched] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const searchRef = useRef(null);
 
   useEffect(() => {
-    if (!query.trim()) return setResults([]);
+    if (!query.trim()) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
     const t = setTimeout(async () => {
       try {
         const d = await api.get(`/api/search?q=${encodeURIComponent(query.trim())}`);
@@ -30,6 +35,7 @@ export function Navbar({ onEditName }) {
       } catch {
         setResults([]);
       }
+      setSearched(true);
     }, 200);
     return () => clearTimeout(t);
   }, [query]);
@@ -53,6 +59,11 @@ export function Navbar({ onEditName }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          {searched && results.length === 0 && query.trim() && (
+            <div className="search-results" style={{ padding: 14, color: "var(--muted)", fontSize: 14 }}>
+              No one found for “{query.trim()}”
+            </div>
+          )}
           {results.length > 0 && (
             <div className="search-results">
               {results.map((u) => (
