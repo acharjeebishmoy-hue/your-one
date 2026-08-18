@@ -1636,7 +1636,7 @@ input, textarea { font: inherit; color: inherit; }
   .bn-item.active .bn-avatar { border-color: var(--accent); }
   .bn-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-  /* messages: one pane at a time on phones */
+  /* messages: one pane at a time on phones — open chat goes FULL SCREEN */
   .msg-panes { display: block; height: auto; min-height: 0; }
   .msg-list { width: 100%; border-radius: 0; border-left: none; border-right: none; max-height: calc(100dvh - 130px); }
   .msg-chat {
@@ -1647,9 +1647,21 @@ input, textarea { font: inherit; color: inherit; }
     height: calc(100dvh - 118px);
   }
   .msg-panes.open .msg-list { display: none; }
-  .msg-panes.open .msg-chat { display: flex; }
+  .msg-panes.open .msg-chat {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    height: 100dvh;
+    border: none;
+  }
   .msg-back { display: flex; }
+  .msg-head { padding-top: max(10px, env(safe-area-inset-top)); }
   .msg-body { padding: 14px 12px; }
+  .msg-input-row { gap: 6px; padding: 10px 10px max(12px, env(safe-area-inset-bottom)); }
+  .chat-tool { width: 34px; height: 34px; font-size: 17px; }
+  .msg-input-row .btn { padding: 9px 16px; font-size: 14px; }
+  .msg-input-row .text-input { font-size: 16px; }
   .bubble { max-width: 85%; }
 
   /* always-visible delete button on phones (no hover) */
