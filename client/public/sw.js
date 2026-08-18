@@ -17,6 +17,41 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+/* Real push notifications — show a system notification when the server pushes */
+self.addEventListener("push", (e) => {
+  let data = {};
+  try {
+    data = e.data ? e.data.json() : {};
+  } catch {
+    /* bad payload — ignore */
+  }
+  const title = data.title || "Your One";
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/logo.png",
+    badge: "/logo.png",
+    data: { url: data.url || "/" },
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+/* Tap a notification → open the right page (post, profile, or messages) */
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
