@@ -45,11 +45,17 @@ export function PostModal() {
 
   async function react(type) {
     const was = post.myReaction;
+    const before = post;
     if (was === type) {
       post.myReaction = null;
       post.likeCount -= 1;
       post.reactions = { ...post.reactions, [type]: Math.max(0, (post.reactions[type] || 0) - 1) };
-      await api.del(`/api/posts/${post.id}/like`);
+      setPost({ ...post });
+      try {
+        await api.del(`/api/posts/${post.id}/like`);
+      } catch {
+        setPost(before);
+      }
     } else {
       post.myReaction = type;
       post.likeCount += was ? 0 : 1;
@@ -58,9 +64,13 @@ export function PostModal() {
         [type]: (post.reactions[type] || 0) + 1,
         [was]: was ? Math.max(0, (post.reactions[was] || 0) - 1) : post.reactions[was],
       };
-      await api.post(`/api/posts/${post.id}/like`, { type });
+      setPost({ ...post });
+      try {
+        await api.post(`/api/posts/${post.id}/like`, { type });
+      } catch {
+        setPost(before);
+      }
     }
-    setPost({ ...post });
   }
 
   async function addComment(e) {
