@@ -364,31 +364,42 @@ app.delete("/api/users/:id/follow", requireNamed, wrap(async (req, res) => {
   res.json({ isFollowing: false });
 }));
 
+const FOLLOWER_BLOCK_FILTER = `
+  AND u.id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
+  AND u.id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)`;
+
 app.get("/api/users/:id/followers", wrap(async (req, res) => {
+  const me = (await deviceUser(req)) || { id: 0 };
   const rows = await db
     .prepare(
       `SELECT u.* FROM follows f JOIN users u ON u.id = f.follower_id
-       WHERE f.followee_id = ? ORDER BY f.created_at DESC LIMIT 100`
+       WHERE f.followee_id = @id${FOLLOWER_BLOCK_FILTER} ORDER BY f.created_at DESC LIMIT 100`
     )
-    .all(Number(req.params.id));
+    .all({ me: me.id, id: Number(req.params.id) });
   res.json({ users: rows.map(publicUser) });
 }));
 
 app.get("/api/users/:id/following", wrap(async (req, res) => {
+  const me = (await deviceUser(req)) || { id: 0 };
   const rows = await db
     .prepare(
       `SELECT u.* FROM follows f JOIN users u ON u.id = f.followee_id
-       WHERE f.follower_id = ? ORDER BY f.created_at DESC LIMIT 100`
+       WHERE f.follower_id = @id${FOLLOWER_BLOCK_FILTER} ORDER BY f.created_at DESC LIMIT 100`
     )
-    .all(Number(req.params.id));
+    .all({ me: me.id, id: Number(req.params.id) });
   res.json({ users: rows.map(publicUser) });
 }));
 
 app.get("/api/users/:id/posts", wrap(async (req, res) => {
   const viewer = await deviceUser(req);
+  const vid = viewer?.id ?? 0;
   const rows = await postRows(
-    db.prepare(`${POST_SELECT} WHERE p.user_id = @viewerId ORDER BY p.created_at DESC, p.id DESC`),
-    { viewer: viewer?.id ?? 0, viewerId: Number(req.params.id) },
+    db.prepare(
+      `${POST_SELECT} WHERE p.user_id = @viewerId
+         AND ${BLOCK_FILTER} AND ${BLOCKED_BY_FILTER}
+       ORDER BY p.created_at DESC, p.id DESC`
+    ),
+    { viewer: vid, viewerId: Number(req.params.id) },
     viewer?.id
   );
   res.json({ posts: rows });
@@ -405,7 +416,7 @@ app.get("/api/search", wrap(async (req, res) => {
          AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
        ORDER BY name LIMIT 12`
     )
-    .all(`%${q}%`, { me: me.id });
+    .all(`%${q}%`, { me: me?.id ?? 0 });
   res.json({ users: rows.map(publicUser) });
 }));
 
@@ -445,9 +456,10 @@ app.get("/api/posts", wrap(async (req, res) => {
 
 app.get("/api/posts/:id", wrap(async (req, res) => {
   const viewer = await deviceUser(req);
+  const vid = viewer?.id ?? 0;
   const row = await postRow(
-    db.prepare(`${POST_SELECT} WHERE p.id = @id`),
-    { viewer: viewer?.id ?? 0, id: Number(req.params.id) },
+    db.prepare(`${POST_SELECT} WHERE p.id = @id AND ${BLOCK_FILTER} AND ${BLOCKED_BY_FILTER}`),
+    { viewer: vid, id: Number(req.params.id) },
     viewer?.id
   );
   if (!row) return res.status(404).json({ error: "Post not found" });
@@ -509,6 +521,7 @@ app.delete("/api/posts/:id", wrap(async (req, res) => {
   if (!me || post.user_id !== me.id) return res.status(403).json({ error: "Not your post" });
   await db.prepare("DELETE FROM posts WHERE id = ?").run(post.id);
   await deleteImage(post.image);
+  await deleteImage(post.video); // videos were never being cleaned up — storage leak
   res.json({ ok: true });
 }));
 
@@ -541,6 +554,17 @@ app.delete("/api/posts/:id/like", requireNamed, wrap(async (req, res) => {
 // ---------- comments ----------
 
 app.get("/api/posts/:id/comments", wrap(async (req, res) => {
+  const viewer = await deviceUser(req);
+  const vid = viewer?.id ?? 0;
+  const post = await db
+    .prepare(
+      `SELECT p.id FROM posts p
+       WHERE p.id = @id
+         AND p.user_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @vid)
+         AND p.user_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @vid)`
+    )
+    .get({ id: Number(req.params.id), vid });
+  if (!post) return res.status(404).json({ error: "Post not found" });
   const comments = (await db
     .prepare(
       `SELECT c.*, u.name, u.avatar
@@ -602,6 +626,7 @@ app.post("/api/posts/:id/comments", requireNamed, wrap(async (req, res) => {
 
 app.get("/api/notifications", wrap(async (req, res) => {
   const me = await deviceUser(req);
+  if (!me) return res.json({ notifications: [] });
   const rows = await db
     .prepare(
       `SELECT n.*, u.name, u.avatar, p.image AS post_image
@@ -632,6 +657,7 @@ app.get("/api/notifications", wrap(async (req, res) => {
 
 app.post("/api/notifications/read", wrap(async (req, res) => {
   const me = await deviceUser(req);
+  if (!me) return res.json({ ok: true });
   await db.prepare("UPDATE notifications SET read = 1 WHERE user_id = ?").run(me.id);
   res.json({ ok: true });
 }));
@@ -659,7 +685,7 @@ app.post("/api/push/subscribe", wrap(async (req, res) => {
 app.post("/api/push/unsubscribe", wrap(async (req, res) => {
   const me = await deviceUser(req);
   const { endpoint } = req.body || {};
-  if (endpoint) {
+  if (endpoint && me) {
     await db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id = ?").run(String(endpoint).slice(0, 1000), me.id);
   }
   res.json({ ok: true });
@@ -724,6 +750,7 @@ app.get("/api/messages/:userId", wrap(async (req, res) => {
   const me = await namedUser(req, res);
   if (!me) return;
   const otherId = Number(req.params.userId);
+  if (!Number.isInteger(otherId)) return res.status(400).json({ error: "Bad user id" });
   const other = await db.prepare("SELECT * FROM users WHERE id = ? AND name IS NOT NULL").get(otherId);
   if (!other) return res.status(404).json({ error: "User not found" });
   await db.prepare("UPDATE messages SET read = 1 WHERE from_id = ? AND to_id = ? AND read = 0").run(otherId, me.id);
@@ -968,9 +995,11 @@ app.get("/api/stories", wrap(async (req, res) => {
          (SELECT COUNT(*) FROM story_views sv WHERE sv.story_id = s.id AND sv.user_id = @me) AS viewed
        FROM stories s JOIN users u ON u.id = s.user_id
        WHERE s.created_at > ?
+         AND s.user_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
+         AND s.user_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
        ORDER BY s.created_at DESC`
     )
-    .all(cutoff, { me: me.id });
+    .all(cutoff, { me: me?.id ?? 0 });
   res.json({
     stories: rows.map((s) => ({
       id: s.id,
@@ -1024,9 +1053,11 @@ app.get("/api/events", wrap(async (req, res) => {
          (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'interested') AS interested,
          (SELECT r.status FROM event_rsvps r WHERE r.event_id = e.id AND r.user_id = @me) AS my_status
        FROM events e JOIN users u ON u.id = e.user_id
+       WHERE e.user_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = @me)
+         AND e.user_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = @me)
        ORDER BY e.starts_at ASC LIMIT 100`
     )
-    .all({ me: me.id });
+    .all({ me: me?.id ?? 0 });
   res.json({ events: rows.map(eventToJson) });
 }));
 
