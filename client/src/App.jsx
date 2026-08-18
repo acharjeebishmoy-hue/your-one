@@ -6,6 +6,7 @@ import { Navbar } from "./components/Navbar.jsx";
 import { BottomNav } from "./components/BottomNav.jsx";
 import { DesktopRail } from "./components/DesktopPanels.jsx";
 import { Composer } from "./components/Composer.jsx";
+import { MessageToast } from "./components/MessageToast.jsx";
 import { PostModal } from "./components/PostModal.jsx";
 import { NameModal } from "./components/NameModal.jsx";
 import { Feed } from "./pages/Feed.jsx";
@@ -64,6 +65,7 @@ export default function App() {
         </main>
       </div>
 
+      <MessageToast />
       {composerOpen && (
         <Composer
           onClose={() => setComposerOpen(false)}
