@@ -7,6 +7,7 @@ import { Avatar } from "./Avatar.jsx";
 function preview(c) {
   if (c.lastKind === "voice") return "🎤 Voice message";
   if (c.lastKind === "sticker") return `${c.lastBody} sticker`;
+  if (c.lastKind === "image") return "📷 Photo";
   return c.lastBody || "";
 }
 
