@@ -11,8 +11,12 @@ export function Events() {
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
-    const d = await api.get("/api/events");
-    setEvents(d.events);
+    try {
+      const d = await api.get("/api/events");
+      setEvents(d.events);
+    } catch {
+      setEvents([]);
+    }
   }, []);
 
   useEffect(() => {
