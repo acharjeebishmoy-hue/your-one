@@ -682,6 +682,19 @@ app.post("/api/push/status", wrap(async (req, res) => {
   res.json({ on: !!r });
 }));
 
+// Fire a test push to the caller right now — used right after enabling, so the
+// user SEES a real notification pop up instantly as proof it works.
+app.post("/api/push/test", wrap(async (req, res) => {
+  const me = await namedUser(req, res);
+  if (!me) return;
+  await sendPushToUser(me.id, {
+    title: "Your One",
+    body: "✅ You're all set! You'll get notified even when the app is closed.",
+    url: "/",
+  });
+  res.json({ ok: true });
+}));
+
 app.post("/api/push/subscribe", wrap(async (req, res) => {
   const me = await namedUser(req, res);
   if (!me) return;
