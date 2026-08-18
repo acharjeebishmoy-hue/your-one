@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
@@ -11,23 +11,44 @@ export function Profile() {
   const { user, updateUser } = useAuth();
   const [data, setData] = useState(null);
   const [posts, setPosts] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showList, setShowList] = useState(null);
   const [listUsers, setListUsers] = useState([]);
   const fileRef = useRef(null);
 
   async function load() {
-    const d = await api.get(`/api/users/${encodeURIComponent(name)}`);
-    const p = await api.get(`/api/users/${d.user.id}/posts`);
-    setData(d);
-    setPosts(p.posts);
+    try {
+      const d = await api.get(`/api/users/${encodeURIComponent(name)}`);
+      const p = await api.get(`/api/users/${d.user.id}/posts`);
+      setData(d);
+      setPosts(p.posts);
+    } catch {
+      setNotFound(true);
+    }
   }
 
   useEffect(() => {
     setData(null);
     setPosts(null);
+    setNotFound(false);
     load();
   }, [name]);
+
+  if (notFound) {
+    return (
+      <div className="page">
+        <div className="empty">
+          <div className="big">🤷</div>
+          <b>No one by that name here.</b>
+          <div style={{ color: "var(--muted)", fontSize: 14 }}>
+            The profile may have been deleted, or the person hasn&apos;t joined yet.
+          </div>
+          <Link to="/search" className="btn" style={{ marginTop: 12 }}>Find your friends</Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!data || !posts) return <div className="page"><div className="spin" /></div>;
 
