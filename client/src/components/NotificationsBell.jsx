@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { timeAgo } from "../utils.js";
 import { Avatar } from "./Avatar.jsx";
+import { PushToggle } from "./PushToggle.jsx";
 
 function notifText(n) {
   const who = <b>{n.actor.name}</b>;
@@ -98,6 +99,7 @@ export function NotificationsBell() {
       {open && (
         <div className="dropdown">
           <div className="modal-head"><span>Notifications</span></div>
+          <PushToggle />
           {items.length === 0 && (
             <div className="empty" style={{ padding: 24 }}>
               Nothing yet — likes, comments and follows will show up here.
