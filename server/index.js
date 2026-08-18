@@ -21,7 +21,7 @@ const supabase =
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     : null;
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "8mb" })); // 8mb — voice messages are base64 audio
 app.use("/uploads", express.static(UPLOAD_DIR, { maxAge: "30d" }));
 
 // Express 4 doesn't catch async errors automatically — wrap every handler.
@@ -585,6 +585,9 @@ app.get("/api/conversations", wrap(async (req, res) => {
   const rows = await db
     .prepare(
       `SELECT u.id, u.name, u.avatar, u.bio, u.last_seen,
+         (SELECT m.kind FROM messages m
+           WHERE (m.from_id = @me AND m.to_id = u.id) OR (m.from_id = u.id AND m.to_id = @me)
+           ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_kind,
          (SELECT m.body FROM messages m
            WHERE (m.from_id = @me AND m.to_id = u.id) OR (m.from_id = u.id AND m.to_id = @me)
            ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_body,
@@ -599,7 +602,15 @@ app.get("/api/conversations", wrap(async (req, res) => {
        ORDER BY last_at DESC`
     )
     .all({ me: me.id });
-  res.json({ users: rows.map((r) => ({ ...publicUser(r), lastBody: r.last_body, lastAt: r.last_at, unread: Number(r.unread || 0) })) });
+  res.json({
+    users: rows.map((r) => ({
+      ...publicUser(r),
+      lastKind: r.last_kind || "text",
+      lastBody: r.last_body,
+      lastAt: r.last_at,
+      unread: Number(r.unread || 0),
+    })),
+  });
 }));
 
 // Unread count for the nav badge (must be registered BEFORE /api/messages/:userId)
@@ -620,7 +631,7 @@ app.get("/api/messages/:userId", wrap(async (req, res) => {
   await db.prepare("UPDATE messages SET read = 1 WHERE from_id = ? AND to_id = ? AND read = 0").run(otherId, me.id);
   const rows = await db
     .prepare(
-      `SELECT m.id, m.from_id, m.to_id, m.body, m.read, m.created_at, u.name AS from_name, u.avatar AS from_avatar
+      `SELECT m.id, m.from_id, m.to_id, m.body, m.kind, m.read, m.created_at, u.name AS from_name, u.avatar AS from_avatar
        FROM messages m JOIN users u ON u.id = m.from_id
        WHERE (m.from_id = @me AND m.to_id = @other) OR (m.from_id = @other AND m.to_id = @me)
        ORDER BY m.created_at ASC, m.id ASC`
@@ -633,6 +644,7 @@ app.get("/api/messages/:userId", wrap(async (req, res) => {
       fromId: m.from_id,
       toId: m.to_id,
       body: m.body,
+      kind: m.kind || "text",
       read: !!m.read,
       createdAt: m.created_at,
       fromName: m.from_name,
@@ -641,13 +653,23 @@ app.get("/api/messages/:userId", wrap(async (req, res) => {
   });
 }));
 
-// Send a message
+// Send a message — kind: text | voice | sticker
 app.post("/api/messages", wrap(async (req, res) => {
   const me = await namedUser(req, res);
   if (!me) return;
   const toId = Number(req.body?.toId);
-  const body = String(req.body?.body || "").trim().slice(0, 2000);
+  const kind = ["text", "voice", "sticker"].includes(req.body?.kind) ? req.body.kind : "text";
+  let body = String(req.body?.body || "").trim();
+  // text/sticker are short; voice is base64 audio (much bigger)
+  if (kind === "voice") body = body.slice(0, 4_500_000);
+  else body = body.slice(0, 2000);
   if (!toId || !body) return res.status(400).json({ error: "Message is empty" });
+  if (kind === "voice" && !body.startsWith("data:audio/")) {
+    return res.status(400).json({ error: "Invalid voice message" });
+  }
+  if (kind === "sticker" && body.length > 64) {
+    return res.status(400).json({ error: "Invalid sticker" });
+  }
   if (toId === me.id) return res.status(400).json({ error: "You can't message yourself" });
   const other = await db.prepare("SELECT * FROM users WHERE id = ? AND name IS NOT NULL").get(toId);
   if (!other) return res.status(404).json({ error: "User not found" });
@@ -656,14 +678,15 @@ app.post("/api/messages", wrap(async (req, res) => {
     .get(me.id, toId, toId, me.id);
   if (blocked) return res.status(403).json({ error: "You can't message this person" });
   const info = await db
-    .prepare("INSERT INTO messages (from_id, to_id, body) VALUES (?, ?, ?) RETURNING id")
-    .run(me.id, toId, body);
+    .prepare("INSERT INTO messages (from_id, to_id, body, kind) VALUES (?, ?, ?, ?) RETURNING id")
+    .run(me.id, toId, body, kind);
+  const preview = kind === "voice" ? "🎤 Voice message" : kind === "sticker" ? `${body} sticker` : body.slice(0, 140);
   await db
     .prepare("INSERT INTO notifications (user_id, actor_id, type, post_id, body) VALUES (?, ?, 'message', NULL, ?)")
-    .run(toId, me.id, body.slice(0, 140));
+    .run(toId, me.id, preview);
   const row = await db
     .prepare(
-      `SELECT m.id, m.from_id, m.to_id, m.body, m.read, m.created_at, u.name AS from_name, u.avatar AS from_avatar
+      `SELECT m.id, m.from_id, m.to_id, m.body, m.kind, m.read, m.created_at, u.name AS from_name, u.avatar AS from_avatar
        FROM messages m JOIN users u ON u.id = m.from_id WHERE m.id = ?`
     )
     .get(info.lastInsertRowid);
@@ -673,6 +696,7 @@ app.post("/api/messages", wrap(async (req, res) => {
       fromId: row.from_id,
       toId: row.to_id,
       body: row.body,
+      kind: row.kind || "text",
       read: !!row.read,
       createdAt: row.created_at,
       fromName: row.from_name,
