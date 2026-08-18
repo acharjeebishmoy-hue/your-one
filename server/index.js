@@ -6,6 +6,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
+import webPush from "web-push";
 import { db, isSupabase, initDb, publicUser, postRow, postRows, POST_SELECT, BLOCK_FILTER, BLOCKED_BY_FILTER } from "./db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,6 +63,74 @@ async function notify({ userId, actorId, type, postId = null, body = null }) {
       `INSERT INTO notifications (user_id, actor_id, type, post_id, body) VALUES (?, ?, ?, NULLIF(?, 0), ?)`
     )
     .run(userId, actorId, type, key, body ?? null);
+  // Fire a real push too (best-effort).
+  const actor = await db.prepare("SELECT name FROM users WHERE id = ?").get(actorId);
+  if (actor?.name) {
+    const url = postId ? `/p/${postId}` : `/u/${encodeURIComponent(actor.name)}`;
+    await sendPushToUser(userId, {
+      title: actor.name,
+      body: pushText(type, actor.name, body),
+      url,
+    });
+  }
+}
+
+// ---------- real push notifications (Web Push) ----------
+
+// VAPID keys are generated once and persisted in the DB so they survive redeploys.
+// (Changing them would invalidate everyone's existing subscriptions.)
+async function getVapidKeys() {
+  const cfg = (k) => db.prepare("SELECT value FROM app_config WHERE key = ?").get(k);
+  let pub = cfg("vapid_public")?.value;
+  let priv = cfg("vapid_private")?.value;
+  if (!pub || !priv) {
+    const keys = webPush.generateVAPIDKeys();
+    pub = keys.publicKey;
+    priv = keys.privateKey;
+    await db
+      .prepare("INSERT INTO app_config (key, value) VALUES ('vapid_public', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value")
+      .run(pub);
+    await db
+      .prepare("INSERT INTO app_config (key, value) VALUES ('vapid_private', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value")
+      .run(priv);
+  }
+  webPush.setVapidDetails("mailto:yourone@app.local", pub, priv);
+  return pub;
+}
+
+// Send a real push to every device the user has registered. Dead subscriptions
+// (uninstalled apps) are cleaned up automatically.
+async function sendPushToUser(userId, { title, body, url = "/" }) {
+  try {
+    await getVapidKeys();
+    const subs = await db.prepare("SELECT * FROM push_subscriptions WHERE user_id = ?").all(userId);
+    for (const s of subs) {
+      try {
+        await webPush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          JSON.stringify({ title, body, url, icon: "/logo.png" })
+        );
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await db.prepare("DELETE FROM push_subscriptions WHERE id = ?").run(s.id);
+        }
+      }
+    }
+  } catch {
+    /* push is best-effort — never break the request it fires from */
+  }
+}
+
+function pushText(type, actorName, body) {
+  if (type === "join") return `${actorName} joined the group 🎉`;
+  if (type === "follow") return `${actorName} started following you`;
+  if (type === "like") return `${actorName} liked your post`;
+  if (type === "mention") return `${actorName} mentioned you in a post`;
+  if (type === "share") return `${actorName} shared your post`;
+  if (type === "reply") return `${actorName} replied to your comment`;
+  if (type === "event_rsvp") return `${actorName} ${body || "is going to your event"}`;
+  if (type === "message") return body ? `${actorName}: ${body}` : `${actorName} messaged you`;
+  return body ? `${actorName} commented: ${body}` : `${actorName} commented on your post`;
 }
 
 // Mention/hashtag patterns (shared with the client so rendering matches).
@@ -567,6 +636,35 @@ app.post("/api/notifications/read", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- real push notifications ----------
+
+app.get("/api/push/vapid-key", wrap(async (req, res) => {
+  res.json({ publicKey: await getVapidKeys() });
+}));
+
+app.post("/api/push/subscribe", wrap(async (req, res) => {
+  const me = await namedUser(req, res);
+  if (!me) return;
+  const { endpoint, p256dh, auth } = req.body || {};
+  if (!endpoint || !p256dh || !auth) return res.status(400).json({ error: "Missing subscription" });
+  await db
+    .prepare(
+      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
+       ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`
+    )
+    .run(me.id, String(endpoint).slice(0, 1000), String(p256dh).slice(0, 500), String(auth).slice(0, 500));
+  res.json({ ok: true });
+}));
+
+app.post("/api/push/unsubscribe", wrap(async (req, res) => {
+  const me = await deviceUser(req);
+  const { endpoint } = req.body || {};
+  if (endpoint) {
+    await db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id = ?").run(String(endpoint).slice(0, 1000), me.id);
+  }
+  res.json({ ok: true });
+}));
+
 // ---------- messages (private chat) ----------
 
 async function namedUser(req, res) {
@@ -684,6 +782,11 @@ app.post("/api/messages", wrap(async (req, res) => {
   await db
     .prepare("INSERT INTO notifications (user_id, actor_id, type, post_id, body) VALUES (?, ?, 'message', NULL, ?)")
     .run(toId, me.id, preview);
+  await sendPushToUser(toId, {
+    title: me.name,
+    body: pushText("message", me.name, preview),
+    url: "/messages",
+  });
   const row = await db
     .prepare(
       `SELECT m.id, m.from_id, m.to_id, m.body, m.kind, m.read, m.created_at, u.name AS from_name, u.avatar AS from_avatar
