@@ -1699,6 +1699,50 @@ input, textarea { font: inherit; color: inherit; }
   .sugg-card { width: 128px; padding: 16px 14px; }
 }
 
+/* first-run push banner (Facebook-style) */
+.push-banner {
+  max-width: 660px;
+  margin: 10px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  animation: toast-in 0.25s ease;
+}
+.push-banner.pb-done { background: var(--accent-soft); }
+.pb-emoji { font-size: 18px; flex: none; }
+.pb-text { flex: 1; font-size: 13px; line-height: 1.35; }
+.pb-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  flex: none;
+}
+.pb-btn:disabled { opacity: 0.6; cursor: default; }
+.pb-x {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px;
+  flex: none;
+}
+.pb-hint { font-size: 11px; color: var(--muted); flex: none; }
+@media (max-width: 640px) {
+  .push-banner { margin: 8px 10px 0; }
+  .pb-hint { display: none; }
+}
+
 /* new-message notification toast */
 .msg-toast {
   position: fixed;
