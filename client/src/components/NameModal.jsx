@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useAuth } from "../auth.jsx";
 
 export function NameModal({ onClose }) {
-  const { pickName } = useAuth();
-  const [name, setName] = useState("");
+  const { user, pickName } = useAuth();
+  const [name, setName] = useState(user?.name || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const editing = !!user?.name;
 
   async function submit(e) {
     e.preventDefault();
@@ -25,12 +26,14 @@ export function NameModal({ onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <div className="modal-head">
-          <span>What should we call you?</span>
+          <span>{editing ? "Change your name" : "What should we call you?"}</span>
           <button type="button" className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-            No account, no password — just pick a name so your friends know it&apos;s you.
+            {editing
+              ? "Your friends see this name — it&apos;s how they&apos;ll find you."
+              : "No account, no password — just pick a name so your friends know it&apos;s you."}
           </p>
           {error && <div className="error-box">{error}</div>}
           <input
@@ -42,7 +45,7 @@ export function NameModal({ onClose }) {
             onChange={(e) => setName(e.target.value)}
           />
           <button className="btn block" disabled={busy || name.trim().length < 2}>
-            {busy ? "Saving…" : "Use this name"}
+            {busy ? "Saving…" : editing ? "Save name" : "Use this name"}
           </button>
         </div>
       </form>
