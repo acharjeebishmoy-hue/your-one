@@ -805,19 +805,22 @@ app.get("/api/messages/:userId", wrap(async (req, res) => {
   });
 }));
 
-// Send a message — kind: text | voice | sticker
+// Send a message — kind: text | voice | sticker | image
 app.post("/api/messages", wrap(async (req, res) => {
   const me = await namedUser(req, res);
   if (!me) return;
   const toId = Number(req.body?.toId);
-  const kind = ["text", "voice", "sticker"].includes(req.body?.kind) ? req.body.kind : "text";
+  const kind = ["text", "voice", "sticker", "image"].includes(req.body?.kind) ? req.body.kind : "text";
   let body = String(req.body?.body || "").trim();
-  // text/sticker are short; voice is base64 audio (much bigger)
-  if (kind === "voice") body = body.slice(0, 4_500_000);
+  // text/sticker are short; voice + images are base64 (much bigger)
+  if (kind === "voice" || kind === "image") body = body.slice(0, 4_500_000);
   else body = body.slice(0, 2000);
   if (!toId || !body) return res.status(400).json({ error: "Message is empty" });
   if (kind === "voice" && !body.startsWith("data:audio/")) {
     return res.status(400).json({ error: "Invalid voice message" });
+  }
+  if (kind === "image" && !body.startsWith("data:image/")) {
+    return res.status(400).json({ error: "Invalid image" });
   }
   if (kind === "sticker" && body.length > 64) {
     return res.status(400).json({ error: "Invalid sticker" });
@@ -832,7 +835,14 @@ app.post("/api/messages", wrap(async (req, res) => {
   const info = await db
     .prepare("INSERT INTO messages (from_id, to_id, body, kind) VALUES (?, ?, ?, ?) RETURNING id")
     .run(me.id, toId, body, kind);
-  const preview = kind === "voice" ? "🎤 Voice message" : kind === "sticker" ? `${body} sticker` : body.slice(0, 140);
+  const preview =
+    kind === "voice"
+      ? "🎤 Voice message"
+      : kind === "sticker"
+        ? `${body} sticker`
+        : kind === "image"
+          ? "📷 Photo"
+          : body.slice(0, 140);
   await db
     .prepare("INSERT INTO notifications (user_id, actor_id, type, post_id, body) VALUES (?, ?, 'message', NULL, ?)")
     .run(toId, me.id, preview);
