@@ -111,7 +111,9 @@ async function sendPushToUser(userId, { title, body, url = "/" }) {
           JSON.stringify({ title, body, url, icon: "/logo.png" })
         );
       } catch (err) {
-        if (err.statusCode === 404 || err.statusCode === 410) {
+        // 404/410 = subscription gone (uninstalled). 403 = the VAPID keys changed, so this
+        // subscription can never receive pushes again — drop it and let the client re-enable.
+        if (err.statusCode === 404 || err.statusCode === 410 || err.statusCode === 403) {
           await db.prepare("DELETE FROM push_subscriptions WHERE id = ?").run(s.id);
         }
       }
@@ -666,6 +668,18 @@ app.post("/api/notifications/read", wrap(async (req, res) => {
 
 app.get("/api/push/vapid-key", wrap(async (req, res) => {
   res.json({ publicKey: await getVapidKeys() });
+}));
+
+// Does the server still know this browser's exact subscription? (False = broken/stale —
+// the client shows "Turn on" so the user re-enables and gets a fresh, working one.)
+app.post("/api/push/status", wrap(async (req, res) => {
+  const me = await deviceUser(req);
+  const { endpoint } = req.body || {};
+  if (!me || !endpoint) return res.json({ on: false });
+  const r = await db
+    .prepare("SELECT 1 AS x FROM push_subscriptions WHERE user_id = ? AND endpoint = ?")
+    .get(me.id, String(endpoint).slice(0, 1000));
+  res.json({ on: !!r });
 }));
 
 app.post("/api/push/subscribe", wrap(async (req, res) => {
