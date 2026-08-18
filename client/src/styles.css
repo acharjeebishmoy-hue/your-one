@@ -1383,6 +1383,34 @@ input, textarea { font: inherit; color: inherit; }
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* delete message / chat */
+.msg-del-btn {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+  align-self: center;
+}
+.msg-row:hover .msg-del-btn { opacity: 0.55; }
+.msg-del-btn:hover { opacity: 1 !important; background: var(--danger-soft); color: var(--danger); }
+.msg-del-chat {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 15px;
+  padding: 6px 8px;
+}
+.msg-del-chat:hover { color: var(--danger); background: var(--danger-soft); }
+.msg-head-user + .msg-del-chat { margin-left: auto; }
+
 /* recording bar */
 .rec-bar {
   flex: 1;
@@ -1627,6 +1655,10 @@ input, textarea { font: inherit; color: inherit; }
   .msg-back { display: flex; }
   .msg-body { padding: 14px 12px; }
   .bubble { max-width: 85%; }
+
+  /* always-visible delete button on phones (no hover) */
+  .msg-del-btn { opacity: 0.4; }
+  .msg-row:hover .msg-del-btn { opacity: 0.6; }
 
   /* no floating + on phones — compose box + bottom-nav Create cover it */
   .fab { display: none; }
