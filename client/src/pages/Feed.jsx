@@ -59,6 +59,15 @@ export function Feed({ view, setView, version = 0, onCompose }) {
     });
   }
 
+  // A post deleted from the full-screen view disappears from the feed too.
+  useEffect(() => {
+    function onDeleted(e) {
+      removePost({ id: e.detail });
+    }
+    window.addEventListener("post-deleted", onDeleted);
+    return () => window.removeEventListener("post-deleted", onDeleted);
+  }, []);
+
   return (
     <div className="page">
       <div className="tabs">
