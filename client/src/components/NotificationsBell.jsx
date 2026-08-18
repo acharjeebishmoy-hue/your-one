@@ -29,34 +29,26 @@ export function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
-  const [toast, setToast] = useState(null);
   const rootRef = useRef(null);
   const itemsRef = useRef([]);
-  const openRef = useRef(false);
 
-  async function refresh({ silent = false } = {}) {
+  async function refresh() {
     const d = await api.get("/api/notifications");
-    const known = new Set(itemsRef.current.map((i) => i.id));
-    const fresh = d.notifications.filter((n) => !known.has(n.id));
     itemsRef.current = d.notifications;
     setItems(d.notifications);
     setUnread(d.notifications.filter((n) => !n.read).length);
-    if (!silent && !openRef.current && fresh.length > 0) {
-      setToast(fresh[0]);
-    }
   }
 
-  // Live updates: check every 10s so a like/comment/follow pops up on its own.
+  // Live updates: check every 10s so the unread badge stays current.
   useEffect(() => {
     if (!user) return;
-    refresh({ silent: true }).catch(() => {});
-    const t = setInterval(() => refresh({ silent: true }).catch(() => {}), 10000);
+    refresh().catch(() => {});
+    const t = setInterval(() => refresh().catch(() => {}), 10000);
     return () => clearInterval(t);
   }, [user]);
 
   useEffect(() => {
-    openRef.current = open;
-    if (open) refresh({ silent: true }).catch(() => {});
+    if (open) refresh().catch(() => {});
   }, [open]);
 
   useEffect(() => {
@@ -67,15 +59,7 @@ export function NotificationsBell() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // Auto-dismiss the toast popup
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 8000);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   function openFrom(n) {
-    setToast(null);
     setOpen(false);
     if (unread > 0) {
       setUnread(0);
@@ -120,27 +104,6 @@ export function NotificationsBell() {
               {n.postImage && <img className="notif-thumb" src={n.postImage} alt="" />}
             </div>
           ))}
-        </div>
-      )}
-
-      {toast && (
-        <div className="toast" onClick={() => openFrom(toast)}>
-          <Avatar src={toast.actor.avatar} username={toast.actor.name} size={40} ring={false} />
-          <div className="t-body">
-            <div className="n-text">{notifText(toast)}</div>
-            <div className="n-time">{timeAgo(toast.createdAt)}</div>
-          </div>
-          {toast.postImage && <img className="notif-thumb" src={toast.postImage} alt="" />}
-          <button
-            className="toast-x"
-            aria-label="Dismiss"
-            onClick={(e) => {
-              e.stopPropagation();
-              setToast(null);
-            }}
-          >
-            ✕
-          </button>
         </div>
       )}
     </div>
