@@ -5,6 +5,28 @@ import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { timeAgo } from "../utils.js";
 
+const EMOJIS = [
+  "😀", "😂", "🥹", "😊", "😍", "😘", "😎", "🤩", "🥳", "😢", "😭", "😤",
+  "😡", "🤯", "😴", "🤒", "👍", "👎", "👏", "🙏", "💪", "🤝", "✌️", "🤞",
+  "❤️", "💔", "💯", "🔥", "✨", "🎉", "🥺", "😅",
+];
+
+const STICKERS = [
+  "❤️", "😂", "🔥", "👍", "🥳", "😭", "😍", "👏",
+  "💯", "😎", "🥺", "🤝", "🎉", "💪", "😘", "🤣",
+  "👀", "💀", "🙏", "✨", "🫶", "😤", "🤡", "🫡",
+];
+
+// Convert a Blob into a base64 data URL (for voice messages)
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(fr.error);
+    fr.readAsDataURL(blob);
+  });
+}
+
 export function MessagesPage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -14,10 +36,16 @@ export function MessagesPage() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recTime, setRecTime] = useState(0);
   const endRef = useRef(null);
   const activeRef = useRef(null);
   activeRef.current = active;
   const openedParam = useRef(null);
+  const recRef = useRef(null); // { mediaRecorder, chunks, timer }
+  const inputRef = useRef(null);
 
   // Auto-open a chat when arriving with ?to=<id> (e.g. from a notification)
   useEffect(() => {
@@ -75,9 +103,23 @@ export function MessagesPage() {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
+  // Stop recording if the chat closes mid-recording
+  useEffect(() => {
+    if (!active?.id && recRef.current?.mediaRecorder) {
+      try {
+        recRef.current.mediaRecorder.stop();
+      } catch {}
+      recRef.current = null;
+      setRecording(false);
+      setRecTime(0);
+    }
+  }, [active?.id]);
+
   function openChat(c) {
     setActive(c);
     setParams({ to: String(c.id) }, { replace: true });
+    setShowEmoji(false);
+    setShowStickers(false);
   }
 
   function backToList() {
@@ -85,19 +127,95 @@ export function MessagesPage() {
     setParams({}, { replace: true });
   }
 
-  async function send() {
-    const body = text.trim();
+  async function send(kind = "text", bodyOverride) {
+    const body = bodyOverride ?? text.trim();
     if (!body || !active?.id || sending) return;
     setSending(true);
     try {
-      const d = await api.post("/api/messages", { toId: active.id, body });
+      const d = await api.post("/api/messages", { toId: active.id, body, kind });
       setMessages((m) => [...m, d.message]);
-      setText("");
+      if (kind === "text") setText("");
       api.get("/api/conversations").then((dd) => setConvs(dd.users)).catch(() => {});
     } catch (e) {
       alert(e.message);
     }
     setSending(false);
+  }
+
+  function insertEmoji(e) {
+    setText((t) => t + e);
+    inputRef.current?.focus();
+  }
+
+  async function toggleRecord() {
+    if (recording) {
+      // Stop and send
+      const rec = recRef.current;
+      if (rec?.mediaRecorder && rec.mediaRecorder.state !== "inactive") {
+        rec.mediaRecorder.stop();
+      }
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert("Voice messages aren't supported on this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "";
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      const chunks = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+        recRef.current = null;
+        setRecording(false);
+        setRecTime(0);
+        if (blob.size < 1000) return; // too short — ignore
+        try {
+          const url = await blobToDataUrl(blob);
+          await send("voice", url);
+        } catch (e) {
+          alert("Couldn't send voice message: " + e.message);
+        }
+      };
+      mr.start();
+      const start = Date.now();
+      const timer = setInterval(() => setRecTime(Math.round((Date.now() - start) / 1000)), 500);
+      recRef.current = { mediaRecorder: mr, timer };
+      setRecording(true);
+      setShowEmoji(false);
+      setShowStickers(false);
+    } catch (e) {
+      alert("Microphone access denied — check your browser settings.");
+    }
+  }
+
+  // Clean up timer when recording ends
+  useEffect(() => {
+    if (!recording && recRef.current?.timer) {
+      clearInterval(recRef.current.timer);
+      recRef.current.timer = null;
+    }
+  }, [recording]);
+
+  function formatRec(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function lastPreview(c) {
+    if (c.lastKind === "voice") return "🎤 Voice message";
+    if (c.lastKind === "sticker") return `${c.lastBody} sticker`;
+    return c.lastBody || "";
   }
 
   return (
@@ -123,7 +241,7 @@ export function MessagesPage() {
                     {c.name}
                     {c.unread > 0 && <span className="badge">{c.unread > 9 ? "9+" : c.unread}</span>}
                   </div>
-                  <div className="msg-prev-text">{c.lastBody}</div>
+                  <div className="msg-prev-text">{lastPreview(c)}</div>
                 </div>
                 <div className="msg-prev-time">{c.lastAt ? timeAgo(c.lastAt) : ""}</div>
               </div>
@@ -155,10 +273,22 @@ export function MessagesPage() {
                   return (
                     <div key={m.id} className={`msg-row ${mine ? "mine" : ""}`}>
                       {!mine && <Avatar src={m.fromAvatar} username={m.fromName} size={28} ring={false} />}
-                      <div className="bubble">
-                        {m.body}
-                        <div className="bubble-time">{timeAgo(m.createdAt)}</div>
-                      </div>
+                      {m.kind === "voice" ? (
+                        <div className="bubble voice-bubble">
+                          <audio controls preload="metadata" src={m.body} />
+                          <div className="bubble-time">{timeAgo(m.createdAt)}</div>
+                        </div>
+                      ) : m.kind === "sticker" ? (
+                        <div className="sticker-msg">
+                          <div className="sticker-emoji">{m.body}</div>
+                          <div className="bubble-time">{timeAgo(m.createdAt)}</div>
+                        </div>
+                      ) : (
+                        <div className="bubble">
+                          {m.body}
+                          <div className="bubble-time">{timeAgo(m.createdAt)}</div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -166,19 +296,83 @@ export function MessagesPage() {
               </div>
 
               <div className="msg-input-row">
-                <input
-                  className="text-input"
-                  placeholder="Message…"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") send();
-                  }}
-                />
-                <button className="btn" disabled={!text.trim() || sending} onClick={send}>
-                  Send
-                </button>
+                {recording ? (
+                  <div className="rec-bar">
+                    <span className="rec-dot" />
+                    <span className="rec-timer">{formatRec(recTime)}</span>
+                    <button className="btn rec-send" onClick={toggleRecord}>
+                      Send
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      className={`chat-tool ${showEmoji ? "on" : ""}`}
+                      onClick={() => {
+                        setShowEmoji((v) => !v);
+                        setShowStickers(false);
+                      }}
+                      title="Emoji"
+                    >
+                      🙂
+                    </button>
+                    <button
+                      className={`chat-tool ${showStickers ? "on" : ""}`}
+                      onClick={() => {
+                        setShowStickers((v) => !v);
+                        setShowEmoji(false);
+                      }}
+                      title="Stickers"
+                    >
+                      🎁
+                    </button>
+                    <button
+                      className="chat-tool rec-btn"
+                      onClick={toggleRecord}
+                      title="Voice message"
+                    >
+                      🎤
+                    </button>
+                    <input
+                      ref={inputRef}
+                      className="text-input"
+                      placeholder="Message…"
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") send();
+                      }}
+                    />
+                    <button className="btn" disabled={!text.trim() || sending} onClick={() => send()}>
+                      Send
+                    </button>
+                  </>
+                )}
               </div>
+
+              {showEmoji && (
+                <div className="emoji-picker">
+                  {EMOJIS.map((e) => (
+                    <button key={e} className="ep-emoji" onClick={() => insertEmoji(e)}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showStickers && (
+                <div className="emoji-picker sticker-picker">
+                  {STICKERS.map((s) => (
+                    <button
+                      key={s}
+                      className="ep-sticker"
+                      disabled={sending}
+                      onClick={() => send("sticker", s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <div className="msg-empty">
