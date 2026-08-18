@@ -218,6 +218,30 @@ export function MessagesPage() {
     return c.lastBody || "";
   }
 
+  async function deleteMessage(m) {
+    if (!confirm("Delete this message?")) return;
+    try {
+      await api.del(`/api/messages/${m.id}`);
+      setMessages((ms) => ms.filter((x) => x.id !== m.id));
+      api.get("/api/conversations").then((dd) => setConvs(dd.users)).catch(() => {});
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function deleteChat() {
+    if (!active?.id) return;
+    if (!confirm(`Delete the whole chat with ${active.name || "this person"}? This can't be undone.`)) return;
+    try {
+      await api.del(`/api/conversations/${active.id}`);
+      setMessages([]);
+      api.get("/api/conversations").then((dd) => setConvs(dd.users)).catch(() => {});
+      backToList();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
   return (
     <div className="page">
       <div className={`msg-panes ${active ? "open" : ""}`}>
@@ -264,6 +288,14 @@ export function MessagesPage() {
                 ) : (
                   <span className="msg-head-user">…</span>
                 )}
+                <button
+                  className="icon-btn msg-del-chat"
+                  onClick={deleteChat}
+                  title="Delete chat"
+                  aria-label="Delete chat"
+                >
+                  🗑
+                </button>
               </div>
 
               <div className="msg-body">
@@ -289,6 +321,14 @@ export function MessagesPage() {
                           <div className="bubble-time">{timeAgo(m.createdAt)}</div>
                         </div>
                       )}
+                      <button
+                        className="msg-del-btn"
+                        onClick={() => deleteMessage(m)}
+                        title="Delete message"
+                        aria-label="Delete message"
+                      >
+                        ✕
+                      </button>
                     </div>
                   );
                 })}
