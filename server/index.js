@@ -705,6 +705,31 @@ app.post("/api/messages", wrap(async (req, res) => {
   });
 }));
 
+// Delete a single message (either participant can remove it from the thread)
+app.delete("/api/messages/:id", wrap(async (req, res) => {
+  const me = await namedUser(req, res);
+  if (!me) return;
+  const id = Number(req.params.id);
+  const msg = await db.prepare("SELECT * FROM messages WHERE id = ?").get(id);
+  if (!msg) return res.status(404).json({ error: "Message not found" });
+  if (msg.from_id !== me.id && msg.to_id !== me.id) {
+    return res.status(403).json({ error: "Not your message" });
+  }
+  await db.prepare("DELETE FROM messages WHERE id = ?").run(id);
+  res.json({ ok: true });
+}));
+
+// Delete the whole chat with someone (removes every message between us)
+app.delete("/api/conversations/:userId", wrap(async (req, res) => {
+  const me = await namedUser(req, res);
+  if (!me) return;
+  const otherId = Number(req.params.userId);
+  await db
+    .prepare("DELETE FROM messages WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)")
+    .run(me.id, otherId, otherId, me.id);
+  res.json({ ok: true });
+}));
+
 // ---------- shares ----------
 
 app.post("/api/posts/:id/share", requireNamed, wrap(async (req, res) => {
