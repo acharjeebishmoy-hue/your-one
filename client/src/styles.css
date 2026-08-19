@@ -65,24 +65,14 @@ input, textarea { font: inherit; color: inherit; }
   font-weight: 700;
   font-size: 22px;
   letter-spacing: -0.5px;
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text);
   white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .logo-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--grad);
-  flex-shrink: 0;
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
-  /* optically center the dot with the letters, not the text box */
-  transform: translateY(1px);
+  display: none;
 }
 .nav-search {
   flex: 1;
@@ -603,7 +593,7 @@ input, textarea { font: inherit; color: inherit; }
   padding: 36px 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-.auth-card .logo { font-size: 32px; display: block; text-align: center; margin-bottom: 20px; }
+.auth-card .logo { font-size: 32px; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; }
 .auth-card h2 { margin: 0 0 6px; font-size: 20px; text-align: center; }
 .auth-card .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; text-align: center; }
 .field { margin-bottom: 12px; }
@@ -1510,12 +1500,9 @@ input, textarea { font: inherit; color: inherit; }
   .birthday-card .rich-link { color: #ffd75e; }
   .pm-media { background: #000; }
   .search-results { background: var(--card); border-color: var(--border); }
-  /* gradient-clipped text looks blurry on phones — solid color in dark mode */
+  /* solid color in dark mode */
   .logo {
-    background: none;
-    -webkit-background-clip: initial;
-    background-clip: initial;
-    color: var(--accent);
+    color: var(--text);
   }
 }
 
@@ -1545,12 +1532,9 @@ input, textarea { font: inherit; color: inherit; }
 
   /* Facebook-style: clean top bar on phones (bottom nav covers the rest) */
   .nav-actions .icon-btn.desktop-only { display: none; }
-  /* crisp logo text on phones (no gradient clip = no blur) */
+  /* crisp logo text on phones */
   .logo {
-    background: none;
-    -webkit-background-clip: initial;
-    background-clip: initial;
-    color: var(--accent);
+    color: var(--text);
     font-size: 20px;
   }
   .mobile-search-btn { display: flex; }
