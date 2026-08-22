@@ -1,0 +1,23 @@
+/* Logo display - match DeepSeek's quality */
+.logo img {
+  height: 32px;
+  width: auto;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.rail-logo-img {
+  width: 42px;
+  height: 42px;
+  display: block;
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.35);
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+  .logo img {
+    height: 28px;
+    width: auto;
+  }
+}
