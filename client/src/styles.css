@@ -25,7 +25,8 @@
   color-scheme: light dark;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+*:focus { outline: none; }
 html, body, #root { height: 100%; }
 
 body {
@@ -37,8 +38,9 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
-button { font: inherit; cursor: pointer; }
-input, textarea { font: inherit; color: inherit; }
+button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+* { -webkit-tap-highlight-color: transparent; }
 
 /* ---------- navbar ---------- */
 .nav {
@@ -468,7 +470,7 @@ input, textarea { font: inherit; color: inherit; }
   padding: 8px 16px;
   border-radius: 20px;
 }
-.comment-box button:disabled { opacity: 0.4; cursor: default; }
+.comment-box button:disabled { opacity: 0.5; cursor: default; pointer-events: none; }
 
 /* ---------- avatar ---------- */
 .avatar-wrap { position: relative; }
@@ -566,7 +568,7 @@ input, textarea { font: inherit; color: inherit; }
   font-size: 15px;
 }
 .btn:hover { background: var(--accent-dark); }
-.btn:disabled { opacity: 0.5; cursor: default; }
+.btn:disabled { opacity: 0.6; cursor: default; pointer-events: none; }
 .btn.block { width: 100%; }
 .btn.ghost {
   background: none;
