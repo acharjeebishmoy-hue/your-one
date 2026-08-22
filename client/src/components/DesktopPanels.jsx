@@ -27,7 +27,7 @@ export function DesktopRail({ onCompose, onEditName }) {
   return (
     <nav className="side-rail" aria-label="Menu">
       <Link to="/" className="rail-logo" title="Your One">
-        <img src="/logo.png" alt="Your One" className="rail-logo-img" />
+        <img src="/logo.svg" alt="Your One" className="rail-logo-img" />
       </Link>
 
       <NavLink to="/" end className="rail-link" title="Home">
