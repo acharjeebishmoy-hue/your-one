@@ -51,7 +51,7 @@ export function Navbar({ onEditName }) {
   return (
     <header className="nav">
       <div className="nav-inner">
-        <Link to="/" className="logo"><img src="/logo.svg" alt="Your One" style={{ height: 28, width: 28, borderRadius: 6 }} />Your One</Link>
+        <Link to="/" className="logo"><img src="/logo.png" alt="Your One" style={{ height: 28, width: 28, borderRadius: 6 }} />Your One</Link>
 
         <div className="nav-search" ref={searchRef}>
           <input
