@@ -108,7 +108,7 @@ async function sendPushToUser(userId, { title, body, url = "/" }) {
       try {
         await webPush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          JSON.stringify({ title, body, url, icon: "/logo.svg" })
+          JSON.stringify({ title, body, url, icon: "/logo.png" })
         );
       } catch (err) {
         // 404/410 = subscription gone (uninstalled). 403 = the VAPID keys changed, so this
