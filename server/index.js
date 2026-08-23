@@ -1131,6 +1131,32 @@ app.delete("/api/events/:id", wrap(async (req, res) => {
 
 // ---------- calls (WebRTC signaling) ----------
 
+// SSE connections for real-time call signaling
+const sseClients = new Map();
+function broadcastToUser(userId, data) {
+  const clients = sseClients.get(String(userId));
+  if (clients) {
+    const msg = `data: ${JSON.stringify(data)}\n\n`;
+    for (const res of clients) { try { res.write(msg); } catch {} }
+  }
+}
+
+// SSE stream — client connects here for instant call notifications
+app.get("/api/calls/stream", (req, res) => {
+  const userId = String(req.query.userId || "");
+  if (!userId) return res.status(400).end();
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write(`data: {"type":"connected"}\n\n`);
+  if (!sseClients.has(userId)) sseClients.set(userId, new Set());
+  sseClients.get(userId).add(res);
+  req.on("close", () => { sseClients.get(userId)?.delete(res); });
+});
+
 // Start a call
 app.post("/api/calls/start", wrap(async (req, res) => {
   const user = await deviceUser(req);
@@ -1143,6 +1169,12 @@ app.post("/api/calls/start", wrap(async (req, res) => {
   // End any existing active calls for either party
   await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE status IN ('ringing', 'active') AND (caller_id = ? OR callee_id = ? OR caller_id = ? OR callee_id = ?)").run(user.id, user.id, calleeId, calleeId);
   const result = await db.prepare("INSERT INTO calls (caller_id, callee_id, status, offer) VALUES (?, ?, 'ringing', ?)").run(user.id, calleeId, JSON.stringify(offer));
+  // Notify callee instantly via SSE
+  broadcastToUser(calleeId, {
+    type: "incoming", callId: result.lastInsertRowid, callerId: user.id,
+    callerName: user.name, callerAvatar: user.avatar,
+    offer, candidates: [],
+  });
   res.json({ ok: true, callId: result.lastInsertRowid });
 }));
 
@@ -1154,6 +1186,11 @@ app.post("/api/calls/:id/answer", wrap(async (req, res) => {
   if (!call) return res.status(404).json({ error: "Call not found" });
   if (call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
   await db.prepare("UPDATE calls SET status = 'active', answer = ?, started_at = NOW() WHERE id = ?").run(JSON.stringify(answer), req.params.id);
+  // Notify caller instantly via SSE
+  broadcastToUser(call.caller_id, {
+    type: "answered", callId: call.id, answer,
+    candidates: JSON.parse(call.candidates || "[]"),
+  });
   res.json({ ok: true });
 }));
 
@@ -1178,10 +1215,13 @@ app.post("/api/calls/:id/end", wrap(async (req, res) => {
   if (!call) return res.status(404).json({ error: "Call not found" });
   if (call.caller_id !== user.id && call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
   await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE id = ?").run(req.params.id);
+  // Notify both parties instantly
+  broadcastToUser(call.caller_id, { type: "ended", callId: call.id });
+  broadcastToUser(call.callee_id, { type: "ended", callId: call.id });
   res.json({ ok: true });
 }));
 
-// Poll for incoming/updated calls
+// Poll for incoming/updated calls (fallback for browsers without SSE)
 app.get("/api/calls/poll", wrap(async (req, res) => {
   const user = await deviceUser(req);
   if (!user) return res.json({ call: null });
