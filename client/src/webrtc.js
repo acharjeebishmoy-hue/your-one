@@ -187,8 +187,8 @@ export function useCall(userId) {
     }
 
     poll(); // immediate first poll
-    // FAST polling (500ms) so calls connect instantly
-    pollingRef.current = setInterval(poll, 500);
+    // FAST polling (200ms) so calls connect instantly
+    pollingRef.current = setInterval(poll, 200);
     return () => { cancelled = true; if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [userId]);
 
