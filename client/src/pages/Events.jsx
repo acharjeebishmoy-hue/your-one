@@ -4,11 +4,13 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { formatEventDate, isOnline } from "../utils.js";
 import { Avatar } from "../components/Avatar.jsx";
+import { SafeConfirm } from "../components/SafeConfirm.jsx";
 
 export function Events() {
   const { user } = useAuth();
   const [events, setEvents] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -28,10 +30,11 @@ export function Events() {
     setEvents((es) => es.map((x) => (x.id === e.id ? d.event : x)));
   }
 
-  async function del(e) {
-    if (!confirm(`Delete "${e.title}"?`)) return;
-    await api.del(`/api/events/${e.id}`);
-    setEvents((es) => es.filter((x) => x.id !== e.id));
+  async function del() {
+    if (!confirmDelete) return;
+    await api.del(`/api/events/${confirmDelete.id}`);
+    setEvents((es) => es.filter((x) => x.id !== confirmDelete.id));
+    setConfirmDelete(null);
   }
 
   return (
@@ -94,7 +97,7 @@ export function Events() {
                     <button className="btn small ghost" onClick={() => rsvp(e, "not")}>Not going</button>
                   )}
                   {user?.id === e.host.id && (
-                    <button className="btn small danger" onClick={() => del(e)}>Delete</button>
+                    <button className="btn small danger" onClick={() => setConfirmDelete(e)}>🗑 Delete</button>
                   )}
                 </div>
               </div>
@@ -104,6 +107,18 @@ export function Events() {
       )}
 
       {creating && <CreateEvent onClose={() => setCreating(false)} onCreated={() => { setCreating(false); load(); }} />}
+
+      {confirmDelete && (
+        <SafeConfirm
+          icon="🗑"
+          title={`Delete "${confirmDelete.title}"?`}
+          message="This event will be permanently removed."
+          confirmText="Delete"
+          danger
+          onConfirm={del}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
