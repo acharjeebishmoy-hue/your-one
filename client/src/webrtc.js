@@ -18,6 +18,12 @@ export function useCall(userId) {
   const startTimeRef = useRef(null);
   const pollingRef = useRef(null);
   const localStreamRef = useRef(null);
+  const activeCallRef = useRef(null); // FIX: track current activeCall in a ref to avoid stale closure
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
 
   // Poll for incoming calls ALWAYS when logged in
   useEffect(() => {
@@ -62,11 +68,13 @@ export function useCall(userId) {
     return stream;
   }
 
-  function createPC(onCandidate) {
+  function createPC() {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     pc.onicecandidate = (e) => {
       if (e.candidate && callIdRef.current) {
-        onCandidate(e.candidate.toJSON());
+        api.post(`/api/calls/${callIdRef.current}/candidate`, {
+          candidate: e.candidate.toJSON(),
+        }).catch(() => {});
       }
     };
     pc.ontrack = (e) => {
@@ -81,16 +89,10 @@ export function useCall(userId) {
     return pc;
   }
 
-  async function sendCandidate(candidate) {
-    try {
-      await api.post(`/api/calls/${callIdRef.current}/candidate`, { candidate });
-    } catch {}
-  }
-
   // Start a call (caller side)
   async function startCall(calleeId, video = false) {
     const stream = await getLocalMedia(video);
-    const pc = createPC(sendCandidate);
+    const pc = createPC();
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     const offer = await pc.createOffer();
@@ -114,7 +116,7 @@ export function useCall(userId) {
   // Answer a call (callee side) — called when user taps the green button
   async function answerCall(callData, video = false) {
     const stream = await getLocalMedia(video);
-    const pc = createPC(sendCandidate);
+    const pc = createPC();
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     if (callData.offer) {
@@ -201,10 +203,12 @@ export function useCall(userId) {
   async function pollForCalls() {
     try {
       const d = await api.get("/api/calls/poll");
+      const current = activeCallRef.current; // FIX: use ref instead of stale closure
+
       if (!d.call) {
-        // No active call — if we had one, it ended
-        if (callIdRef.current && !activeCall) {
-          // Someone ended a call we weren't tracking — clean up silently
+        // No active call on server — if we had one, it ended
+        if (callIdRef.current && current) {
+          doCleanup();
         }
         return;
       }
@@ -212,9 +216,8 @@ export function useCall(userId) {
 
       if (c.status === "ringing" && !c.isCaller) {
         // Incoming call — show ring screen (only if not already showing one)
-        setActiveCall((prev) => {
-          if (prev?.id === c.id) return prev; // already showing this call
-          return {
+        if (!current || current.id !== c.id) {
+          setActiveCall({
             id: c.id,
             status: "ringing",
             isCaller: false,
@@ -223,10 +226,10 @@ export function useCall(userId) {
             otherUser: { name: c.callerName, avatar: c.callerAvatar },
             offer: c.offer,
             candidates: c.candidates,
-          };
-        });
-      } else if (c.status === "active" && c.isCaller && activeCall?.status === "ringing") {
-        // Our call was answered — set up remote description
+          });
+        }
+      } else if (c.status === "active" && c.isCaller && current?.status === "ringing") {
+        // FIX: uses ref — our call was answered! Set up remote description
         if (c.answer && pcRef.current?.signalingState === "have-local-offer") {
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(c.answer));
           if (c.candidates?.length) {
