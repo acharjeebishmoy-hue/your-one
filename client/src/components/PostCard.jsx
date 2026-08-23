@@ -5,6 +5,7 @@ import { useAuth } from "../auth.jsx";
 import { timeAgo, plural, isOnline, REACTION_EMOJI, reactionSummary } from "../utils.js";
 import { RichText } from "./RichText.jsx";
 import { Avatar } from "./Avatar.jsx";
+import { SafeConfirm, SafeAlert } from "./SafeConfirm.jsx";
 
 export function HeartIcon({ filled }) {
   return (
@@ -116,16 +117,20 @@ export function PostCard({ post, onDeleted }) {
     }
   }
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReport, setConfirmReport] = useState(false);
+  const [alertMsg, setAlertMsg] = useState(null);
+
   async function deletePost() {
-    if (!confirm("Delete this post?")) return;
+    setConfirmDelete(false);
     await api.del(`/api/posts/${post.id}`);
     onDeleted?.(post.id);
   }
 
   async function reportPost() {
-    if (!confirm("Report this post?")) return;
+    setConfirmReport(false);
     await api.post(`/api/posts/${post.id}/report`, { reason: "reported by user" });
-    alert("Reported. Thanks for keeping the group safe!");
+    setAlertMsg({ icon: "✅", title: "Reported", message: "Thanks for keeping the group safe!" });
   }
 
   const postLink = () => `${location.origin}/p/${post.id}`;
@@ -201,9 +206,9 @@ export function PostCard({ post, onDeleted }) {
               <button onClick={() => { copyLink(); setMenuOpen(false); }}>🔗 Copy</button>
               <button onClick={() => { setSharing(true); setMenuOpen(false); }}>📤 Share</button>
               {isMine ? (
-                <button onClick={deletePost}>🗑 Delete</button>
+                <button onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}>🗑 Delete</button>
               ) : (
-                <button onClick={reportPost}>🚩 Report</button>
+                <button onClick={() => { setMenuOpen(false); setConfirmReport(true); }}>🚩 Report</button>
               )}
             </div>
           )}
@@ -363,6 +368,39 @@ export function PostCard({ post, onDeleted }) {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmDelete && (
+        <SafeConfirm
+          icon="🗑"
+          title="Delete post?"
+          message="This post will be permanently removed."
+          confirmText="Delete"
+          danger
+          onConfirm={deletePost}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {confirmReport && (
+        <SafeConfirm
+          icon="🚩"
+          title="Report this post?"
+          message="We'll review it and take action if needed."
+          confirmText="Report"
+          danger
+          onConfirm={reportPost}
+          onCancel={() => setConfirmReport(false)}
+        />
+      )}
+
+      {alertMsg && (
+        <SafeAlert
+          icon={alertMsg.icon}
+          title={alertMsg.title}
+          message={alertMsg.message}
+          onClose={() => setAlertMsg(null)}
+        />
       )}
     </article>
   );
