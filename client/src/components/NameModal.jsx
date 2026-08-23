@@ -32,8 +32,8 @@ export function NameModal({ onClose }) {
         <div className="modal-body">
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
             {editing
-              ? "Your friends see this name — it&apos;s how they&apos;ll find you."
-              : "No account, no password — just pick a name so your friends know it&apos;s you."}
+              ? "Your friends see this name — it's how they'll find you."
+              : "No account, no password — just pick a name so your friends know it's you."}
           </p>
           {error && <div className="error-box">{error}</div>}
           <input
