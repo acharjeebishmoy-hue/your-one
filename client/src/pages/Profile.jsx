@@ -5,6 +5,7 @@ import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { plural, isOnline } from "../utils.js";
 import { SafeConfirm } from "../components/SafeConfirm.jsx";
+import { IconEdit, IconBlock, IconChat, IconPlus, IconCheck, IconEmptyPhoto, IconNoResults } from "../components/Icons.jsx";
 
 export function Profile() {
   const { name } = useParams();
@@ -117,18 +118,18 @@ export function Profile() {
           <div className="profile-top">
             <h1>{profile.name}</h1>
             {isMe ? (
-              <button className="btn ghost small" onClick={() => setEditing(true)}>✏️ Edit</button>
+              <button className="btn ghost small" onClick={() => setEditing(true)}><IconEdit size={14} /> Edit</button>
             ) : isBlocked ? (
-              <button className="btn small danger" onClick={block}>🚫 Unblock</button>
+              <button className="btn small danger" onClick={block}><IconBlock size={14} /> Unblock</button>
             ) : (
               <>
                 <button className={`btn small ${isFollowing ? "ghost" : ""}`} onClick={toggleFollow}>
-                  {isFollowing ? "✓ Following" : "+ Follow"}
+                  {isFollowing ? <><IconCheck size={14} /> Following</> : <><IconPlus size={14} /> Follow</>}
                 </button>
                 <button className="btn small ghost" onClick={() => navigate(`/messages?to=${profile.id}`)}>
-                  💬
+                  <IconChat size={14} />
                 </button>
-                <button className="btn small ghost danger-text" onClick={block}>🚫</button>
+                <button className="btn small ghost danger-text" onClick={block}><IconBlock size={14} /></button>
               </>
             )}
           </div>
@@ -145,7 +146,7 @@ export function Profile() {
 
           <div className="profile-bio">
             <div>{profile.bio || "No bio yet."}</div>
-            {profile.birthday && <div className="ev-meta">🎂 {profile.birthday}</div>}
+            {profile.birthday && <div className="ev-meta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-2,marginRight:4}}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{profile.birthday}</div>}
           </div>
         </div>
       </div>
@@ -153,9 +154,9 @@ export function Profile() {
       <hr className="sep" />
       {posts.length === 0 ? (
         <div className="empty">
-          <div className="big">📸</div>
+          <IconEmptyPhoto size={48} />
           <div style={{fontWeight: 600}}>{isMe ? "No posts yet" : "No posts"}</div>
-          {isMe && <div style={{fontSize: 13, marginTop: 4}}>Tap ➕ to share</div>}
+          {isMe && <div style={{fontSize: 13, marginTop: 4}}>Tap + to share</div>}
         </div>
       ) : (
         <div className="profile-grid">
@@ -206,7 +207,7 @@ export function Profile() {
 
       {confirmBlock && (
         <SafeConfirm
-          icon="🚫"
+          icon="block"
           title={`Block ${profile.name}?`}
           message="You won't see their posts and they can't interact with you."
           confirmText="Block"
@@ -265,7 +266,7 @@ function EditProfile({ profile, onClose, onSaved }) {
             <textarea className="textarea-input" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} />
           </div>
           <div className="field">
-            <label>Birthday <span className="hint">(so friends can wish you 🎂)</span></label>
+            <label>Birthday <span className="hint">(so friends can wish you!)</span></label>
             <input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
           </div>
           <button className="btn block" disabled={busy} onClick={save}>
