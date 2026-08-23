@@ -5,6 +5,7 @@ import { POLL_MS } from "../perf.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { timeAgo } from "../utils.js";
+import { IconEmptyChat } from "../components/Icons.jsx";
 import { SafeConfirm, SafeAlert } from "../components/SafeConfirm.jsx";
 
 const EMOJIS = [
@@ -263,9 +264,9 @@ export function MessagesPage() {
   }
 
   function lastPreview(c) {
-    if (c.lastKind === "voice") return "🎤 Voice message";
-    if (c.lastKind === "sticker") return `${c.lastBody} sticker`;
-    if (c.lastKind === "image") return "📷 Photo";
+    if (c.lastKind === "voice") return "Voice message";
+    if (c.lastKind === "sticker") return `${c.lastBody}`;
+    if (c.lastKind === "image") return "Photo";
     return c.lastBody || "";
   }
 
@@ -276,7 +277,7 @@ export function MessagesPage() {
       setMessages((ms) => ms.filter((x) => x.id !== m.id));
       api.get("/api/conversations").then((dd) => setConvs(dd.users)).catch(() => {});
     } catch (e) {
-      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
+      setAlertMsg({ icon: "x", title: "Error", message: e.message });
     }
   }
 
@@ -289,7 +290,7 @@ export function MessagesPage() {
       api.get("/api/conversations").then((dd) => setConvs(dd.users)).catch(() => {});
       backToList();
     } catch (e) {
-      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
+      setAlertMsg({ icon: "x", title: "Error", message: e.message });
     }
   }
 
@@ -300,9 +301,9 @@ export function MessagesPage() {
           <div className="msg-list-head">Messages</div>
           {convs.length === 0 ? (
             <div className="empty">
-              <div className="big">💬</div>
+              <IconEmptyChat size={48} />
               <div style={{fontWeight: 600}}>No chats yet</div>
-              <div style={{fontSize: 13, marginTop: 4}}>Open a profile → tap 💬</div>
+              <div style={{fontSize: 13, marginTop: 4}}>Open a profile to start chatting</div>
             </div>
           ) : (
             convs.map((c) => (
@@ -351,7 +352,7 @@ export function MessagesPage() {
               </div>
 
               <div className="msg-body">
-                {messages.length === 0 && <div className="empty">Say hi 👋</div>}
+                {messages.length === 0 && <div className="empty">Say hi</div>}
                 {messages.map((m) => {
                   const mine = m.fromId === user?.id;
                   return (
@@ -492,7 +493,7 @@ export function MessagesPage() {
             </>
           ) : (
             <div className="msg-empty">
-              <div className="big">💬</div>
+              <IconEmptyChat size={48} />
               Pick a conversation to start chatting.
             </div>
           )}
@@ -501,7 +502,7 @@ export function MessagesPage() {
 
       {confirmDeleteMsg && (
         <SafeConfirm
-          icon="🗑"
+          icon="trash"
           title="Delete message?"
           message="This message will be permanently removed."
           confirmText="Delete"
@@ -513,7 +514,7 @@ export function MessagesPage() {
 
       {confirmDeleteChat && (
         <SafeConfirm
-          icon="🗑"
+          icon="trash"
           title="Delete entire chat?"
           message={`All messages with ${active?.name || "this person"} will be permanently removed. This can't be undone.`}
           confirmText="Delete all"
