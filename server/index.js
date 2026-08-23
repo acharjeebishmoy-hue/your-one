@@ -1129,6 +1129,83 @@ app.delete("/api/events/:id", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- calls (WebRTC signaling) ----------
+
+// Start a call
+app.post("/api/calls/start", wrap(async (req, res) => {
+  const user = await deviceUser(req);
+  if (!user?.name) return res.status(400).json({ error: "Pick a name first" });
+  const { calleeId, offer } = req.body;
+  if (!calleeId || !offer) return res.status(400).json({ error: "Missing calleeId or offer" });
+  // Check if callee exists
+  const callee = await db.prepare("SELECT id, name FROM users WHERE id = ?").get(calleeId);
+  if (!callee) return res.status(404).json({ error: "User not found" });
+  // End any existing active calls for either party
+  await db.prepare("UPDATE calls SET status = 'ended', ended_at = datetime('now') WHERE status IN ('ringing', 'active') AND (caller_id = ? OR callee_id = ? OR caller_id = ? OR callee_id = ?)").run(user.id, user.id, calleeId, calleeId);
+  const result = await db.prepare("INSERT INTO calls (caller_id, callee_id, status, offer) VALUES (?, ?, 'ringing', ?)").run(user.id, calleeId, JSON.stringify(offer));
+  res.json({ ok: true, callId: result.lastInsertRowid });
+}));
+
+// Answer a call
+app.post("/api/calls/:id/answer", wrap(async (req, res) => {
+  const user = await deviceUser(req);
+  const { answer } = req.body;
+  const call = await db.prepare("SELECT * FROM calls WHERE id = ?").get(req.params.id);
+  if (!call) return res.status(404).json({ error: "Call not found" });
+  if (call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
+  await db.prepare("UPDATE calls SET status = 'active', answer = ?, started_at = datetime('now') WHERE id = ?").run(JSON.stringify(answer), req.params.id);
+  res.json({ ok: true });
+}));
+
+// Add ICE candidate
+app.post("/api/calls/:id/candidate", wrap(async (req, res) => {
+  const user = await deviceUser(req);
+  const { candidate } = req.body;
+  const call = await db.prepare("SELECT * FROM calls WHERE id = ?").get(req.params.id);
+  if (!call) return res.status(404).json({ error: "Call not found" });
+  if (call.caller_id !== user.id && call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
+  const existing = JSON.parse(call.candidates || '[]');
+  existing.push(candidate);
+  await db.prepare("UPDATE calls SET candidates = ? WHERE id = ?").run(JSON.stringify(existing), req.params.id);
+  res.json({ ok: true });
+}));
+
+// End a call
+app.post("/api/calls/:id/end", wrap(async (req, res) => {
+  const user = await deviceUser(req);
+  const call = await db.prepare("SELECT * FROM calls WHERE id = ?").get(req.params.id);
+  if (!call) return res.status(404).json({ error: "Call not found" });
+  if (call.caller_id !== user.id && call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
+  await db.prepare("UPDATE calls SET status = 'ended', ended_at = datetime('now') WHERE id = ?").run(req.params.id);
+  res.json({ ok: true });
+}));
+
+// Poll for incoming/updated calls
+app.get("/api/calls/poll", wrap(async (req, res) => {
+  const user = await deviceUser(req);
+  if (!user?.name) return res.json({ call: null });
+  // Find the most recent active/ringing call involving this user
+  const call = await db.prepare("SELECT c.*, u1.name as caller_name, u1.avatar as caller_avatar, u2.name as callee_name, u2.avatar as callee_avatar FROM calls c JOIN users u1 ON c.caller_id = u1.id JOIN users u2 ON c.callee_id = u2.id WHERE (c.caller_id = ? OR c.callee_id = ?) AND c.status IN ('ringing', 'active') ORDER BY c.created_at DESC LIMIT 1").get(user.id, user.id);
+  if (!call) return res.json({ call: null });
+  res.json({
+    call: {
+      id: call.id,
+      status: call.status,
+      callerId: call.caller_id,
+      callerName: call.caller_name,
+      callerAvatar: call.caller_avatar,
+      calleeId: call.callee_id,
+      calleeName: call.callee_name,
+      calleeAvatar: call.callee_avatar,
+      offer: call.offer ? JSON.parse(call.offer) : null,
+      answer: call.answer ? JSON.parse(call.answer) : null,
+      candidates: JSON.parse(call.candidates || '[]'),
+      isCaller: call.caller_id === user.id,
+      startedAt: call.started_at,
+    }
+  });
+}));
+
 // ---------- serve built client (production) ----------
 
 const DIST = path.join(__dirname, "..", "client", "dist");
