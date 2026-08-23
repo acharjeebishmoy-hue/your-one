@@ -1135,7 +1135,7 @@ const DIST = path.join(__dirname, "..", "client", "dist");
 if (fs.existsSync(DIST)) {
   // Prevent browsers from caching old favicons — force fresh fetch
   app.use((req, res, next) => {
-    if (/\/favicon\.ico|\/logo\.svg|\/logo\.png|\/logo-192|\/logo-512|\/apple-touch/.test(req.path)) {
+    if (/\/favicon\.ico|\/logo|\/apple-touch|\.svg$/.test(req.path)) {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.set('Pragma', 'no-cache');
     }
