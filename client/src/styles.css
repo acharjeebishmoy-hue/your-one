@@ -2322,6 +2322,141 @@ html.low-end .spin {
   animation-duration: 1.2s;
 }
 
+/* ===== CALL UI ===== */
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: linear-gradient(160deg, #0a1628, #1a1a2e, #16213e);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  animation: fade 0.25s ease;
+}
+.call-video-container {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+.call-remote-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.call-local-video {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 120px;
+  height: 160px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.3);
+  z-index: 2;
+}
+.call-video-info {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.call-video-name { font-size: 18px; font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+.call-video-time { font-size: 14px; color: rgba(255,255,255,0.8); }
+.call-audio-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.call-avatar-ring {
+  position: relative;
+  padding: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1E88E5, #1565C0);
+  animation: call-pulse 2s ease infinite;
+}
+@keyframes call-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(30, 136, 229, 0.4); }
+  50% { box-shadow: 0 0 0 20px rgba(30, 136, 229, 0); }
+}
+.call-name {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.call-status {
+  font-size: 15px;
+  color: rgba(255,255,255,0.7);
+}
+.call-controls {
+  position: absolute;
+  bottom: 60px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  z-index: 10;
+}
+.call-controls-video {
+  bottom: 40px;
+}
+.call-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.call-btn:hover { transform: scale(1.08); }
+.call-btn:active { transform: scale(0.95); }
+.call-answer {
+  background: #22c55e;
+  animation: call-ring 1.2s ease infinite;
+}
+@keyframes call-ring {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.call-decline {
+  background: #ef4444;
+}
+.call-mute {
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+}
+.call-mute:hover { background: rgba(255,255,255,0.3); }
+.call-upgrade {
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+}
+.call-upgrade:hover { background: rgba(255,255,255,0.3); }
+.call-btn svg { display: block; }
+
+/* Call button in chat header */
+.msg-call-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 6px 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background 0.12s ease;
+}
+.msg-call-btn:hover { background: var(--accent-soft); }
+.msg-call-btn svg { display: block; }
+
 /* ===== SAFE UI COMPONENTS ===== */
 /* Friendly confirmation dialog — replaces scary browser confirm() */
 .safe-confirm {
