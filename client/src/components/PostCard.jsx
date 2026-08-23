@@ -192,19 +192,18 @@ export function PostCard({ post, onDeleted }) {
         </Link>
         <div style={{ minWidth: 0 }}>
           <Link to={`/u/${encodeURIComponent(post.author.name)}`} className="ph-name">{post.author.name}</Link>
-          <div className="ph-user">@{post.author.name}</div>
         </div>
         <span className="ph-time">{timeAgo(post.createdAt)}</span>
         <div style={{ position: "relative" }} ref={menuRef}>
           <button className="ph-del" title="More" onClick={() => setMenuOpen((o) => !o)}>⋯</button>
           {menuOpen && (
             <div className="dropdown menu-drop" style={{ width: 180 }}>
-              <button onClick={() => { copyLink(); setMenuOpen(false); }}>🔗 Copy link</button>
-              <button onClick={() => { setSharing(true); setMenuOpen(false); }}>📤 Share post</button>
+              <button onClick={() => { copyLink(); setMenuOpen(false); }}>🔗 Copy</button>
+              <button onClick={() => { setSharing(true); setMenuOpen(false); }}>📤 Share</button>
               {isMine ? (
-                <button onClick={deletePost}>🗑 Delete post</button>
+                <button onClick={deletePost}>🗑 Delete</button>
               ) : (
-                <button onClick={reportPost}>🚩 Report post</button>
+                <button onClick={reportPost}>🚩 Report</button>
               )}
             </div>
           )}
@@ -316,7 +315,7 @@ export function PostCard({ post, onDeleted }) {
 
       <form className="comment-box" onSubmit={addComment}>
         <input
-          placeholder="Add a comment…"
+          placeholder="💬"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
@@ -329,7 +328,7 @@ export function PostCard({ post, onDeleted }) {
         <div className="modal-backdrop" onClick={() => setSharing(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
-              <span>Share post</span>
+              <span>📤 Share</span>
               <button className="modal-close" onClick={() => setSharing(false)}>✕</button>
             </div>
             <div className="modal-body">
@@ -342,13 +341,13 @@ export function PostCard({ post, onDeleted }) {
               </div>
               <div className="share-actions">
                 <button className="btn share-act" onClick={shareWithFriends} disabled={busy}>
-                  📲 Share with friends
+                  📲 Share
                 </button>
                 <button className="btn ghost share-act" onClick={copyLink} disabled={busy}>
-                  🔗 Copy link
+                  🔗 Copy
                 </button>
               </div>
-              <div className="share-note">Or repost it to your feed:</div>
+              <div className="share-note">✏️ Repost:</div>
               <textarea
                 className="textarea-input"
                 placeholder="Say something about it… (optional)"
