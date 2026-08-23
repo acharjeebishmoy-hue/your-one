@@ -1,10 +1,11 @@
-import { Link, NavLink } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { MessagesBadge } from "./MessageBadge.jsx";
 
-function HomeIcon() {
+// Universal icons — no English needed
+function HomeIcon({ active }) {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={active ? 0 : 1.8}>
       <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
     </svg>
   );
@@ -12,7 +13,7 @@ function HomeIcon() {
 
 function SearchIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
     </svg>
@@ -21,7 +22,7 @@ function SearchIcon() {
 
 function PlusIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 5v14M5 12h14" />
     </svg>
   );
@@ -29,7 +30,7 @@ function PlusIcon() {
 
 function MessageIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </svg>
   );
@@ -42,29 +43,24 @@ export function BottomNav({ onCompose }) {
   return (
     <nav className="bottom-nav" aria-label="Main">
       <NavLink to="/" className="bn-item" aria-label="Home" end>
-        <HomeIcon />
-        <span className="bn-label">Home</span>
+        {({ isActive }) => <HomeIcon active={isActive} />}
       </NavLink>
       <NavLink to="/search" className="bn-item" aria-label="Search">
         <SearchIcon />
-        <span className="bn-label">Search</span>
       </NavLink>
       <NavLink to="/messages" className="bn-item" aria-label="Messages">
         <span className="bn-icon-wrap">
           <MessageIcon />
           <MessagesBadge />
         </span>
-        <span className="bn-label">Messages</span>
       </NavLink>
       <button className="bn-item bn-create" onClick={onCompose} aria-label="Create post">
         <PlusIcon />
-        <span className="bn-label">Create</span>
       </button>
       <NavLink to={profileTo} className="bn-item" aria-label="Profile">
         <span className="bn-avatar">
           <img src={user?.avatar} alt={user?.name || "you"} />
         </span>
-        <span className="bn-label">Profile</span>
       </NavLink>
     </nav>
   );
