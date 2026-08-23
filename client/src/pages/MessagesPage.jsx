@@ -324,7 +324,7 @@ export function MessagesPage() {
             <>
               <div className="msg-head">
                 <button className="icon-btn msg-back" onClick={backToList} aria-label="Back">
-                  ←
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
                 </button>
                 {active.name ? (
                   <Link to={`/u/${encodeURIComponent(active.name)}`} className="msg-head-user">
@@ -340,7 +340,7 @@ export function MessagesPage() {
                   title="Delete chat"
                   aria-label="Delete chat"
                 >
-                  🗑
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </div>
 
@@ -380,7 +380,7 @@ export function MessagesPage() {
                         title="Delete message"
                         aria-label="Delete message"
                       >
-                        ✕
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
                       </button>
                     </div>
                   );
@@ -394,7 +394,7 @@ export function MessagesPage() {
                     <span className="rec-dot" />
                     <span className="rec-timer">{formatRec(recTime)}</span>
                     <button className="btn rec-send" onClick={toggleRecord}>
-                      Send
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
                   </div>
                 ) : (
@@ -407,7 +407,7 @@ export function MessagesPage() {
                       }}
                       title="Emoji"
                     >
-                      🙂
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
                     </button>
                     <button
                       className={`chat-tool ${showStickers ? "on" : ""}`}
@@ -417,14 +417,14 @@ export function MessagesPage() {
                       }}
                       title="Stickers"
                     >
-                      🎁
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M8 11l2 2 4-4"/></svg>
                     </button>
                     <button
                       className="chat-tool rec-btn"
                       onClick={toggleRecord}
                       title="Voice message"
                     >
-                      🎤
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                     </button>
                     <button
                       className="chat-tool"
@@ -432,7 +432,7 @@ export function MessagesPage() {
                       disabled={sending}
                       title="Photo"
                     >
-                      📷
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                     </button>
                     <input
                       ref={photoRef}
@@ -451,9 +451,11 @@ export function MessagesPage() {
                         if (e.key === "Enter") send();
                       }}
                     />
-                    <button className="btn" disabled={!text.trim() || sending} onClick={() => send()}>
-                      Send
-                    </button>
+                    {text.trim() ? (
+                      <button className="send-icon" disabled={sending} onClick={() => send()} title="Send">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                      </button>
+                    ) : null}
                   </>
                 )}
               </div>
