@@ -6,6 +6,8 @@ const ICE_SERVERS = [
   { urls: "stun:stun1.l.google.com:19302" },
 ];
 
+function log(...args) { console.log("[CALL]", ...args); }
+
 export function useCall(userId) {
   const [activeCall, setActiveCall] = useState(null);
   const [localStream, setLocalStream] = useState(null);
@@ -16,10 +18,10 @@ export function useCall(userId) {
   const callIdRef = useRef(null);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
-  const pollingRef = useRef(null);
   const localStreamRef = useRef(null);
 
   function doCleanup() {
+    log("cleanup");
     if (pcRef.current) { try { pcRef.current.close(); } catch {} pcRef.current = null; }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
@@ -34,10 +36,8 @@ export function useCall(userId) {
   useEffect(() => () => doCleanup(), []);
 
   async function getLocalMedia(video = false) {
-    // Reuse pre-warmed stream if available (prevents double permission dialog)
     if (localStreamRef.current) {
       const s = localStreamRef.current;
-      // Add video track if upgrading from audio-only
       if (video && !s.getVideoTracks().length) {
         try {
           const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
@@ -46,10 +46,12 @@ export function useCall(userId) {
       }
       return s;
     }
+    log("requesting getUserMedia", { video });
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: video ? { width: 640, height: 480, facingMode: "user" } : false,
     });
+    log("got stream", stream.getTracks().map(t => t.kind).join(", "));
     localStreamRef.current = stream;
     setLocalStream(stream);
     return stream;
@@ -74,32 +76,35 @@ export function useCall(userId) {
     };
     pc.onicegatheringstatechange = () => {
       if (pc.iceGatheringState === "complete") { clearTimeout(iceSendTimer); iceSendTimer = null; flushIce(); }
+      log("ICE gathering:", pc.iceGatheringState);
     };
     pc.ontrack = (e) => {
+      log("ontrack!", e.streams[0]?.getTracks().map(t => t.kind));
       setRemoteStream(e.streams[0]);
     };
     pc.onconnectionstatechange = () => {
+      log("connection state:", pc.connectionState);
       if (pc.connectionState === "disconnected" || pc.connectionState === "failed") endCall();
     };
     pcRef.current = pc;
     return pc;
   }
 
-  // ---- START CALL (caller) ----
   async function startCall(calleeId, video = false) {
+    log("startCall", calleeId);
     const stream = await getLocalMedia(video);
     const pc = createPC();
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     const d = await api.post("/api/calls/start", { calleeId, offer: pc.localDescription.toJSON() });
+    log("call created, id:", d.callId);
     callIdRef.current = d.callId;
     setActiveCall({ id: d.callId, status: "ringing", isCaller: true, video, otherUserId: calleeId });
   }
 
-  // ---- ANSWER CALL (callee) ----
   async function answerCall(callData, video = false) {
-    // Get mic IMMEDIATELY — this is what takes 5-10 seconds on mobile
+    log("answerCall", callData.id, "offer:", !!callData.offer);
     const stream = await getLocalMedia(video);
     const pc = createPC();
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
@@ -110,20 +115,20 @@ export function useCall(userId) {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await api.post(`/api/calls/${callData.id}/answer`, { answer: pc.localDescription.toJSON() });
+    log("answer sent!");
     callIdRef.current = callData.id;
     startTimeRef.current = Date.now();
     startDurationTimer();
     setActiveCall({ id: callData.id, status: "active", isCaller: false, video, otherUserId: callData.callerId, otherUser: callData.callerName ? { name: callData.callerName, avatar: callData.callerAvatar } : undefined });
   }
 
-  // ---- END CALL ----
   async function endCall() {
+    log("endCall");
     const id = callIdRef.current;
     doCleanup();
     if (id) api.post(`/api/calls/${id}/end`).catch(() => {});
   }
 
-  // ---- UPGRADE TO VIDEO ----
   async function upgradeToVideo() {
     if (!pcRef.current) return;
     try {
@@ -136,14 +141,8 @@ export function useCall(userId) {
     } catch {}
   }
 
-  function toggleMute() {
-    const s = localStreamRef.current;
-    if (s) { const t = s.getAudioTracks()[0]; if (t) t.enabled = !t.enabled; }
-  }
-  function toggleCamera() {
-    const s = localStreamRef.current;
-    if (s) { const t = s.getVideoTracks()[0]; if (t) t.enabled = !t.enabled; }
-  }
+  function toggleMute() { const s = localStreamRef.current; if (s) { const t = s.getAudioTracks()[0]; if (t) t.enabled = !t.enabled; } }
+  function toggleCamera() { const s = localStreamRef.current; if (s) { const t = s.getVideoTracks()[0]; if (t) t.enabled = !t.enabled; } }
 
   function startDurationTimer() {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -152,81 +151,81 @@ export function useCall(userId) {
     }, 1000);
   }
 
-  // ---- POLLING ----
-  // Fast (200ms) when in a call, slow (5s) when idle
+  // ---- SSE-BASED REAL-TIME SIGNALING ----
   useEffect(() => {
     if (!userId) return;
+    log("starting SSE for user", userId);
     let cancelled = false;
+    let retryTimer = null;
 
-    async function poll() {
-      try {
-        const d = await api.get("/api/calls/poll");
+    function connect() {
+      if (cancelled) return;
+      const es = new EventSource(`/api/calls/stream?userId=${userId}`);
+      es.onmessage = async (e) => {
         if (cancelled) return;
-        if (!d.call) {
-          if (callIdRef.current) doCleanup();
-          return;
-        }
-        const c = d.call;
+        try {
+          const data = JSON.parse(e.data);
+          await handleSignal(data);
+        } catch {}
+      };
+      es.onerror = () => {
+        log("SSE error, reconnecting in 3s...");
+        es.close();
+        if (!cancelled) retryTimer = setTimeout(connect, 3000);
+      };
+      return es;
+    }
 
-        // CASE 1: Incoming call (we are callee, status is ringing)
-        if (c.status === "ringing" && !c.isCaller) {
-          if (callIdRef.current !== c.id) {
-            callIdRef.current = c.id;
-            setActiveCall({
-              id: c.id, status: "ringing", isCaller: false, video: false,
-              otherUserId: c.callerId,
-              otherUser: { name: c.callerName, avatar: c.callerAvatar },
-              offer: c.offer, candidates: c.candidates,
-            });
-            // Pre-warm mic so answer is instant
-            try {
-              const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-              localStreamRef.current = s;
-              setLocalStream(s);
-            } catch {}
+    let eventSource = connect();
+
+    async function handleSignal(data) {
+      log("SSE signal:", data.type, data.callId);
+      if (data.type === "incoming") {
+        // Incoming call — show ring screen immediately
+        log("INCOMING CALL from", data.callerName);
+        callIdRef.current = data.callId;
+        setActiveCall({
+          id: data.callId, status: "ringing", isCaller: false, video: false,
+          otherUserId: data.callerId,
+          otherUser: { name: data.callerName, avatar: data.callerAvatar },
+          offer: data.offer, candidates: data.candidates || [],
+        });
+        // Pre-warm mic
+        try {
+          const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+          localStreamRef.current = s;
+          setLocalStream(s);
+          log("mic pre-warmed");
+        } catch { log("mic pre-warm failed"); }
+
+      } else if (data.type === "answered") {
+        // Our call was answered
+        log("CALL ANSWERED");
+        if (data.answer && pcRef.current?.signalingState === "have-local-offer") {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          if (data.candidates?.length) {
+            for (const cand of data.candidates) { try { await pcRef.current.addIceCandidate(new RTCIceCandidate(cand)); } catch {} }
           }
-          return;
-        }
-
-        // CASE 2: Our call was answered (we are caller)
-        if (c.status === "active" && c.isCaller && callIdRef.current === c.id) {
-          if (c.answer && pcRef.current?.signalingState === "have-local-offer") {
-            await pcRef.current.setRemoteDescription(new RTCSessionDescription(c.answer));
-            if (c.candidates?.length) {
-              for (const cand of c.candidates) { try { await pcRef.current.addIceCandidate(new RTCIceCandidate(cand)); } catch {} }
-            }
-            startTimeRef.current = startTimeRef.current || Date.now();
-            startDurationTimer();
-            setActiveCall(p => p ? { ...p, status: "active" } : p);
-          }
-          return;
-        }
-
-        // CASE 3: Call ended
-        if (c.status === "ended" && callIdRef.current === c.id) {
-          doCleanup();
-          return;
-        }
-
-        // CASE 4: We answered (callee), status is now active
-        if (c.status === "active" && !c.isCaller && callIdRef.current === c.id) {
+          startTimeRef.current = startTimeRef.current || Date.now();
+          startDurationTimer();
           setActiveCall(p => p ? { ...p, status: "active" } : p);
-          return;
         }
-      } catch {}
+
+      } else if (data.type === "ended") {
+        log("CALL ENDED");
+        doCleanup();
+
+      } else if (data.type === "active") {
+        log("CALL NOW ACTIVE");
+        setActiveCall(p => p ? { ...p, status: "active" } : p);
+      }
     }
 
-    // Poll slowly when idle, fast when in a call
-    poll();
-    function scheduleNext() {
-      const interval = callIdRef.current ? 200 : 5000;
-      pollingRef.current = setTimeout(async () => {
-        await poll();
-        scheduleNext();
-      }, interval);
-    }
-    scheduleNext();
-    return () => { cancelled = true; if (pollingRef.current) clearTimeout(pollingRef.current); };
+    return () => {
+      cancelled = true;
+      if (eventSource) eventSource.close();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [userId]);
 
   return {
