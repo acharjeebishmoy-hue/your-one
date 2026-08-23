@@ -1867,6 +1867,67 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   .sugg-card { width: 132px; padding: 18px 16px; }
   .chat-tool { width: 44px; height: 44px; }
   .chat-tool svg { width: 24px; height: 24px; }
+
+  /* FIX 1: Profile avatar — shrink from 130px to 80px on mobile */
+  .profile-head { gap: 16px; padding: 12px 14px 20px; }
+  .profile-head .avatar-wrap { --sz: 80px !important; }
+  .profile-head .avatar-wrap img { width: 80px !important; height: 80px !important; }
+
+  /* FIX 2: Profile buttons — wrap cleanly on narrow screens */
+  .profile-top { gap: 8px; margin-bottom: 8px; }
+  .profile-top h1 { font-size: 18px; }
+  .profile-top .btn { font-size: 12px; padding: 7px 12px; }
+  .profile-stats { gap: 8px; font-size: 13px; }
+  .profile-stats .stat { padding: 5px 10px; }
+  .profile-bio { word-break: break-word; font-size: 13px; }
+
+  /* FIX 3: Events card — date box smaller, buttons wrap */
+  .event-card { padding: 12px; gap: 10px; }
+  .event-date { width: 48px; height: 48px; }
+  .ed-day { font-size: 18px; }
+  .ed-month { font-size: 10px; }
+  .ev-title { font-size: 15px; }
+  .ev-actions { gap: 6px; }
+  .ev-actions .btn { font-size: 12px; padding: 6px 10px; }
+  .ev-desc { font-size: 13px; }
+
+  /* FIX 4: Notifications dropdown — prevent off-screen overflow */
+  .side-rail .dropdown, .dropdown {
+    left: auto;
+    right: 8px;
+    width: min(340px, calc(100vw - 16px));
+    max-height: 50dvh;
+  }
+
+  /* FIX 5: Search results — bottom padding so results aren't hidden behind bottom nav */
+  .search-list { margin-bottom: 16px; }
+  .page .search-list { padding-bottom: 4px; }
+
+  /* FIX 6: Post modal — more room for comments on mobile */
+  .post-modal { border-radius: 0; }
+  .pm-media { height: 35vh; }
+  .pm-side { min-width: 0; }
+  .pm-comments { padding: 10px 12px; gap: 6px; }
+
+  /* FIX 7: Compose box — more breathing room */
+  .compose-box { margin: 0 12px 16px; }
+
+  /* FIX 8: Birthday card — prevent overflow on narrow screens */
+  .birthday-card { font-size: 13px; padding: 8px 10px; }
+
+  /* FIX 9: Messages — chat body scroll padding at bottom */
+  .msg-body { padding-bottom: 20px; }
+
+  /* FIX 10: Navbar — ensure logo doesn't overflow */
+  .logo { font-size: 18px; gap: 6px; }
+  .logo img { height: 28px !important; width: auto !important; }
+
+  /* FIX 11: Suggestions row on Explore — better scroll spacing */
+  .sugg-row { padding: 0 0 4px; }
+  .suggestions { margin: 0 12px 16px; }
+
+  /* FIX 12: Modal bottom sheet — ensure max-height works with safe area */
+  .modal { max-height: calc(92dvh - env(safe-area-inset-bottom, 0px)); }
 }
 
 /* first-run push banner (Facebook-style) */
