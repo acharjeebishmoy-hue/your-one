@@ -5,6 +5,7 @@ import { POLL_MS } from "../perf.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { timeAgo } from "../utils.js";
+import { SafeConfirm, SafeAlert } from "../components/SafeConfirm.jsx";
 
 const EMOJIS = [
   "😀", "😂", "🥹", "😊", "😍", "😘", "😎", "🤩", "🥳", "😢", "😭", "😤",
@@ -65,6 +66,9 @@ export function MessagesPage() {
   const [showStickers, setShowStickers] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recTime, setRecTime] = useState(0);
+  const [confirmDeleteMsg, setConfirmDeleteMsg] = useState(null);
+  const [confirmDeleteChat, setConfirmDeleteChat] = useState(false);
+  const [alertMsg, setAlertMsg] = useState(null);
   const endRef = useRef(null);
   const activeRef = useRef(null);
   activeRef.current = active;
@@ -266,26 +270,26 @@ export function MessagesPage() {
   }
 
   async function deleteMessage(m) {
-    if (!confirm("Delete this message?")) return;
+    setConfirmDeleteMsg(null);
     try {
       await api.del(`/api/messages/${m.id}`);
       setMessages((ms) => ms.filter((x) => x.id !== m.id));
       api.get("/api/conversations").then((dd) => setConvs(dd.users)).catch(() => {});
     } catch (e) {
-      alert(e.message);
+      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
     }
   }
 
   async function deleteChat() {
     if (!active?.id) return;
-    if (!confirm(`Delete the whole chat with ${active.name || "this person"}? This can't be undone.`)) return;
+    setConfirmDeleteChat(false);
     try {
       await api.del(`/api/conversations/${active.id}`);
       setMessages([]);
       api.get("/api/conversations").then((dd) => setConvs(dd.users)).catch(() => {});
       backToList();
     } catch (e) {
-      alert(e.message);
+      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
     }
   }
 
@@ -338,7 +342,7 @@ export function MessagesPage() {
                 )}
                 <button
                   className="icon-btn msg-del-chat"
-                  onClick={deleteChat}
+                  onClick={() => setConfirmDeleteChat(true)}
                   title="Delete chat"
                   aria-label="Delete chat"
                 >
@@ -378,7 +382,7 @@ export function MessagesPage() {
                       )}
                       <button
                         className="msg-del-btn"
-                        onClick={() => deleteMessage(m)}
+                        onClick={() => setConfirmDeleteMsg(m)}
                         title="Delete message"
                         aria-label="Delete message"
                       >
@@ -494,6 +498,39 @@ export function MessagesPage() {
           )}
         </div>
       </div>
+
+      {confirmDeleteMsg && (
+        <SafeConfirm
+          icon="🗑"
+          title="Delete message?"
+          message="This message will be permanently removed."
+          confirmText="Delete"
+          danger
+          onConfirm={() => deleteMessage(confirmDeleteMsg)}
+          onCancel={() => setConfirmDeleteMsg(null)}
+        />
+      )}
+
+      {confirmDeleteChat && (
+        <SafeConfirm
+          icon="🗑"
+          title="Delete entire chat?"
+          message={`All messages with ${active?.name || "this person"} will be permanently removed. This can't be undone.`}
+          confirmText="Delete all"
+          danger
+          onConfirm={deleteChat}
+          onCancel={() => setConfirmDeleteChat(false)}
+        />
+      )}
+
+      {alertMsg && (
+        <SafeAlert
+          icon={alertMsg.icon}
+          title={alertMsg.title}
+          message={alertMsg.message}
+          onClose={() => setAlertMsg(null)}
+        />
+      )}
     </div>
   );
 }
