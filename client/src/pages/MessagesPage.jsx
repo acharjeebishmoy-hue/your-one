@@ -297,7 +297,8 @@ export function MessagesPage() {
           {convs.length === 0 ? (
             <div className="empty">
               <div className="big">💬</div>
-              No messages yet — open someone's profile and hit <b>Message</b>.
+              <div style={{fontWeight: 600}}>No chats yet</div>
+              <div style={{fontSize: 13, marginTop: 4}}>Open a profile → tap 💬</div>
             </div>
           ) : (
             convs.map((c) => (
