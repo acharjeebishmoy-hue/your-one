@@ -13,12 +13,30 @@ function notifText(n) {
   if (n.type === "like") return <span>{who} liked your post</span>;
   if (n.type === "mention") return <span>{who} mentioned you in a post</span>;
   if (n.type === "share") return <span>{who} shared your post</span>;
-  if (n.type === "reply") return <span>{who} replied to your comment{n.body ? <>: “{n.body}”</> : ""}</span>;
+  if (n.type === "reply") return <span>{who} replied to your comment{n.body ? <>: "{n.body}"</> : ""}</span>;
   if (n.type === "event_rsvp") return <span>{who} {n.body || "is going to your event"}</span>;
   if (n.type === "message") return <span>{who} messaged you</span>;
   return (
     <span>
-      {who} commented{n.body ? <>: “{n.body}”</> : " on your post"}
+      {who} commented{n.body ? <>: "{n.body}"</> : " on your post"}
+    </span>
+  );
+}
+
+function NotifIcon({ type }) {
+  const colors = {
+    like: "#e74c3c", love: "#e74c3c", follow: "#1E88E5", comment: "#1E88E5",
+    mention: "#f39c12", share: "#27ae60", join: "#9b59b6", message: "#1E88E5",
+    reply: "#1E88E5", event_rsvp: "#e67e22",
+  };
+  const icons = {
+    like: "❤️", love: "❤️", follow: "👤", comment: "💬",
+    mention: "@", share: "↗️", join: "🎉", message: "✉️",
+    reply: "💬", event_rsvp: "📅",
+  };
+  return (
+    <span className="notif-icon" style={{ background: colors[type] || "#999" }}>
+      {icons[type] || "•"}
     </span>
   );
 }
@@ -30,16 +48,13 @@ export function NotificationsBell() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const rootRef = useRef(null);
-  const itemsRef = useRef([]);
 
   async function refresh() {
     const d = await api.get("/api/notifications");
-    itemsRef.current = d.notifications;
     setItems(d.notifications);
     setUnread(d.notifications.filter((n) => !n.read).length);
   }
 
-  // Live updates: check every 10s so the unread badge stays current.
   useEffect(() => {
     if (!user) return;
     refresh().catch(() => {});
@@ -70,6 +85,12 @@ export function NotificationsBell() {
     else navigate(`/u/${encodeURIComponent(n.actor.name)}`);
   }
 
+  function markAllRead() {
+    setUnread(0);
+    api.post("/api/notifications/read").catch(() => {});
+    setItems((its) => its.map((i) => ({ ...i, read: true })));
+  }
+
   return (
     <div style={{ position: "relative" }} ref={rootRef}>
       <button className="icon-btn" onClick={() => setOpen((o) => !o)} aria-label="Notifications">
@@ -81,29 +102,46 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="dropdown">
-          <div className="modal-head"><span>Notifications</span></div>
-          <PushToggle />
-          {items.length === 0 && (
-            <div className="empty" style={{ padding: 24 }}>
-              Nothing yet — likes, comments and follows will show up here.
+        <div className="dropdown notif-dropdown">
+          <div className="notif-header">
+            <span className="notif-header-title">Notifications</span>
+            <div className="notif-header-actions">
+              {unread > 0 && (
+                <button className="notif-mark-read" onClick={markAllRead}>Mark all read</button>
+              )}
+              <button className="notif-close" onClick={() => setOpen(false)}>✕</button>
+            </div>
+          </div>
+          <div className="notif-push-section">
+            <PushToggle />
+          </div>
+          {items.length === 0 ? (
+            <div className="notif-empty">
+              <div className="notif-empty-icon">🔔</div>
+              <div className="notif-empty-text">No notifications yet</div>
+              <div className="notif-empty-sub">Likes, comments, and follows will show up here.</div>
+            </div>
+          ) : (
+            <div className="notif-list">
+              {items.map((n) => (
+                <div
+                  key={n.id}
+                  className={`notif-item ${n.read ? "" : "unread"}`}
+                  onClick={() => openFrom(n)}
+                >
+                  <div className="notif-avatar-wrap">
+                    <Avatar src={n.actor.avatar} username={n.actor.name} size={40} ring={false} />
+                    <NotifIcon type={n.type} />
+                  </div>
+                  <div className="n-text">
+                    {notifText(n)}
+                    <div className="n-time">{timeAgo(n.createdAt)}</div>
+                  </div>
+                  {n.postImage && <img className="notif-thumb" src={n.postImage} alt="" />}
+                </div>
+              ))}
             </div>
           )}
-          {items.map((n) => (
-            <div
-              key={n.id}
-              className={`notif-item ${n.read ? "" : "unread"}`}
-              onClick={() => openFrom(n)}
-              style={{ cursor: "pointer" }}
-            >
-              <Avatar src={n.actor.avatar} username={n.actor.name} size={34} ring={false} />
-              <div className="n-text">
-                {notifText(n)}
-                <div className="n-time">{timeAgo(n.createdAt)}</div>
-              </div>
-              {n.postImage && <img className="notif-thumb" src={n.postImage} alt="" />}
-            </div>
-          ))}
         </div>
       )}
     </div>
