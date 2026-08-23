@@ -49,10 +49,25 @@ export function useCall(userId) {
   // ---- CREATE PEER CONNECTION ----
   function createPC() {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    pc.onicecandidate = (e) => {
-      if (e.candidate && callIdRef.current) {
-        api.post(`/api/calls/${callIdRef.current}/candidate`, { candidate: e.candidate.toJSON() }).catch(() => {});
+    // Batch ICE candidates — send all at once when gathering completes
+    const iceBuffer = [];
+    let iceSendTimer = null;
+    function flushIce() {
+      if (iceBuffer.length && callIdRef.current) {
+        const batch = [...iceBuffer];
+        iceBuffer.length = 0;
+        api.post(`/api/calls/${callIdRef.current}/candidate`, { candidates: batch }).catch(() => {});
       }
+    }
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        iceBuffer.push(e.candidate.toJSON());
+        // Send batch every 300ms
+        if (!iceSendTimer) iceSendTimer = setTimeout(() => { iceSendTimer = null; flushIce(); }, 300);
+      }
+    };
+    pc.onicegatheringstatechange = () => {
+      if (pc.iceGatheringState === "complete") { clearTimeout(iceSendTimer); iceSendTimer = null; flushIce(); }
     };
     pc.ontrack = (e) => { setRemoteStream(e.streams[0]); };
     pc.onconnectionstatechange = () => {
@@ -187,8 +202,8 @@ export function useCall(userId) {
     }
 
     poll(); // immediate first poll
-    // FAST polling (200ms) so calls connect instantly
-    pollingRef.current = setInterval(poll, 200);
+    // FAST polling (100ms) — calls must connect instantly
+    pollingRef.current = setInterval(poll, 100);
     return () => { cancelled = true; if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [userId]);
 
