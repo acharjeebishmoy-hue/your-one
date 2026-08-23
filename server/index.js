@@ -1160,12 +1160,13 @@ app.post("/api/calls/:id/answer", wrap(async (req, res) => {
 // Add ICE candidate
 app.post("/api/calls/:id/candidate", wrap(async (req, res) => {
   const user = await deviceUser(req);
-  const { candidate } = req.body;
+  const { candidate, candidates } = req.body;
   const call = await db.prepare("SELECT * FROM calls WHERE id = ?").get(req.params.id);
   if (!call) return res.status(404).json({ error: "Call not found" });
   if (call.caller_id !== user.id && call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
   const existing = JSON.parse(call.candidates || '[]');
-  existing.push(candidate);
+  if (candidates?.length) existing.push(...candidates);
+  else if (candidate) existing.push(candidate);
   await db.prepare("UPDATE calls SET candidates = ? WHERE id = ?").run(JSON.stringify(existing), req.params.id);
   res.json({ ok: true });
 }));
