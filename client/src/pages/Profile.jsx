@@ -165,7 +165,7 @@ export function Profile() {
               {p.video ? (
                 <>
                   <video src={p.video} muted playsInline preload="metadata" />
-                  <span className="tile-badge">🎬</span>
+                  <span className="tile-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5,3 19,12 5,21"/></svg></span>
                 </>
               ) : p.image ? (
                 <img src={p.image} alt={p.caption || "post"} loading="lazy" />
