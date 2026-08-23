@@ -1761,7 +1761,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
     --hairline: #333333;
   }
   .post-img { background: var(--soft); }
-  .tab.active { color: var(--accent); background: var(--accent-soft); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: none; }
   .btn.ghost { color: var(--accent); }
   .reaction-picker { background: var(--card); }
   .mention-picker { background: var(--card); }
