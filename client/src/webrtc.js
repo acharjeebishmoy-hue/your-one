@@ -4,6 +4,16 @@ import { api } from "./api.js";
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "stun:stun.ekiga.net" },
+  { urls: "stun:stun.ideasip.com" },
+  { urls: "stun:stun.schlund.de" },
+  { urls: "stun:stun.voiparound.com" },
+  { urls: "stun:stun.voipbuster.com" },
+  { urls: "stun:stun.voipstunt.com" },
+  { urls: "stun:stun.services.mozilla.com" },
 ];
 
 function log(...args) { console.log("[CALL]", ...args); }
@@ -83,13 +93,29 @@ export function useCall(userId) {
       log("ICE gathering:", pc.iceGatheringState);
     };
     pc.ontrack = (e) => {
-      log("ontrack!", e.streams[0]?.getTracks().map(t => t.kind));
+      log("ontrack!", e.streams[0]?.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+      log("remote audio tracks:", e.streams[0]?.getAudioTracks().length);
       setRemoteStream(e.streams[0]);
+    };
+    pc.onaddstream = (e) => {
+      log("onaddstream (legacy)", e.stream?.getTracks().map(t => t.kind));
+    };
+    pc.oniceconnectionstatechange = () => {
+      log("ICE state:", pc.iceConnectionState);
     };
     pc.onconnectionstatechange = () => {
       log("connection state:", pc.connectionState);
       if (pc.connectionState === "disconnected" || pc.connectionState === "failed") endCall();
     };
+    // Warn if no remote track after 15s — ICE likely failed
+    setTimeout(() => {
+      if (pcRef.current === pc && !remoteStream) {
+        log("WARNING: No remote audio after 15s!");
+        log("PC states:", pc.signalingState, pc.iceConnectionState, pc.iceGatheringState);
+        log("Remote streams:", pc.getRemoteStreams().length);
+        log("Local streams:", pc.getLocalStreams().length);
+      }
+    }, 15000);
     pcRef.current = pc;
     return pc;
   }
@@ -111,7 +137,8 @@ export function useCall(userId) {
     log("answerCall", callData.id, "offer:", !!callData.offer);
     const stream = await getLocalMedia(video);
     const pc = createPC();
-    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    stream.getTracks().forEach(t => { log("adding track:", t.kind, t.enabled); pc.addTrack(t, stream); });
+    log("PC signaling after tracks:", pc.signalingState);
     if (callData.offer) await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
     if (callData.candidates?.length) {
       for (const c of callData.candidates) { try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {} }
