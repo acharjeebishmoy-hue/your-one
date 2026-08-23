@@ -5,6 +5,7 @@ import { useAuth } from "./auth.jsx";
 import { Navbar } from "./components/Navbar.jsx";
 import { BottomNav } from "./components/BottomNav.jsx";
 import { DesktopRail } from "./components/DesktopPanels.jsx";
+import { DesktopRightPanel } from "./components/DesktopRightPanel.jsx";
 import { Composer } from "./components/Composer.jsx";
 import { MessageToast } from "./components/MessageToast.jsx";
 import { PushBanner } from "./components/PushBanner.jsx";
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+        <DesktopRightPanel />
       </div>
 
       <MessageToast />
