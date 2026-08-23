@@ -108,10 +108,10 @@ export function PostModal() {
     setShareMsg("");
     try {
       await api.post(`/api/posts/${post.id}/share`, { comment: "" });
-      setShareMsg("Shared to your feed! ✅");
+      setShareMsg("Shared to your feed!");
       setTimeout(() => setShareMsg(""), 2500);
     } catch (e) {
-      setShareMsg("⚠️ " + (e.message || "Couldn't share — try again."));
+      setShareMsg(e.message || "Couldn't share — try again.");
     }
   }
 
@@ -126,7 +126,7 @@ export function PostModal() {
       window.dispatchEvent(new CustomEvent("post-deleted", { detail: post.id }));
       navigate(-1);
     } catch (e) {
-      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
+      setAlertMsg({ icon: "x", title: "Error", message: e.message });
     }
   }
 
@@ -134,9 +134,9 @@ export function PostModal() {
     setConfirmReport(false);
     try {
       await api.post(`/api/posts/${post.id}/report`, { reason: "reported by user" });
-      setAlertMsg({ icon: "✅", title: "Reported", message: "Thanks for keeping the group safe!" });
+      setAlertMsg({ icon: "check", title: "Reported", message: "Thanks for keeping the group safe!" });
     } catch (e) {
-      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
+      setAlertMsg({ icon: "x", title: "Error", message: e.message });
     }
   }
 
@@ -171,11 +171,11 @@ export function PostModal() {
               <button className="ph-del" title="More" onClick={() => setMenuOpen((o) => !o)}>⋯</button>
               {menuOpen && (
                 <div className="dropdown menu-drop" style={{ width: 170, right: 0, left: "auto" }}>
-                  <button onClick={() => { navigator.clipboard.writeText(location.origin + "/p/" + post.id); setShareMsg("Link copied! 🔗"); setTimeout(() => setShareMsg(""), 2500); setMenuOpen(false); }}>🔗 Copy link</button>
+                  <button onClick={() => { navigator.clipboard.writeText(location.origin + "/p/" + post.id); setShareMsg("Link copied!"); setTimeout(() => setShareMsg(""), 2500); setMenuOpen(false); }}>Copy link</button>
                   {isMine ? (
-                    <button onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}>🗑 Delete</button>
+                    <button onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-2,marginRight:6}}><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>
                   ) : (
-                    <button onClick={() => { setMenuOpen(false); setConfirmReport(true); }}>🚩 Report</button>
+                    <button onClick={() => { setMenuOpen(false); setConfirmReport(true); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-2,marginRight:6}}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>Report</button>
                   )}
                 </div>
               )}
@@ -238,7 +238,7 @@ export function PostModal() {
                 <ShareIcon />
               </button>
             </div>
-            {shareMsg && <div className={`share-msg ${shareMsg.startsWith("⚠️") ? "share-err" : ""}`}>{shareMsg}</div>}
+            {shareMsg && <div className="share-msg share-err">{shareMsg}</div>}
             {summary && (
               <div className="post-reactions">
                 <span className="pr-emoji">{summary}</span>
@@ -267,7 +267,7 @@ export function PostModal() {
 
       {confirmDelete && (
         <SafeConfirm
-          icon="🗑"
+          icon="trash"
           title="Delete post?"
           message="This post will be permanently removed."
           confirmText="Delete"
@@ -279,7 +279,7 @@ export function PostModal() {
 
       {confirmReport && (
         <SafeConfirm
-          icon="🚩"
+          icon="report"
           title="Report this post?"
           message="We'll review it and take action if needed."
           confirmText="Report"
