@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
+import { IconEmptyFeed } from "../components/Icons.jsx";
 
 export function Explore() {
   const { user } = useAuth();
@@ -65,7 +66,7 @@ export function Explore() {
         <div className="spin" />
       ) : posts.length === 0 ? (
         <div className="empty">
-          <div className="big">🌍</div>
+          <IconEmptyFeed size={48} />
           <div style={{fontSize: 15, fontWeight: 600}}>No posts yet</div>
           <div style={{fontSize: 13, marginTop: 4}}>Be the first! Tap ➕ to post</div>
         </div>
