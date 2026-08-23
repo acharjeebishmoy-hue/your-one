@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
-import { timeAgo, formatDate, plural, isOnline, REACTION_EMOJI, reactionSummary } from "../utils.js";
+import { timeAgo, plural, isOnline, REACTION_EMOJI, reactionSummary } from "../utils.js";
 import { RichText } from "./RichText.jsx";
 import { Avatar } from "./Avatar.jsx";
 
@@ -199,6 +199,8 @@ export function PostCard({ post, onDeleted }) {
           <button className="ph-del" title="More" onClick={() => setMenuOpen((o) => !o)}>⋯</button>
           {menuOpen && (
             <div className="dropdown menu-drop" style={{ width: 180 }}>
+              <button onClick={() => { copyLink(); setMenuOpen(false); }}>🔗 Copy link</button>
+              <button onClick={() => { setSharing(true); setMenuOpen(false); }}>📤 Share post</button>
               {isMine ? (
                 <button onClick={deletePost}>🗑 Delete post</button>
               ) : (
@@ -309,7 +311,7 @@ export function PostCard({ post, onDeleted }) {
           </div>
         )}
 
-        <div className="post-time">{formatDate(post.createdAt)}</div>
+        <div className="post-time">{timeAgo(post.createdAt)}</div>
       </div>
 
       <form className="comment-box" onSubmit={addComment}>
@@ -318,7 +320,9 @@ export function PostCard({ post, onDeleted }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        <button type="submit" disabled={!text.trim() || busy}>Send</button>
+        <button type="submit" disabled={!text.trim() || busy} className="comment-send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
       </form>
 
       {sharing && (
