@@ -66,7 +66,8 @@ export function Explore() {
       ) : posts.length === 0 ? (
         <div className="empty">
           <div className="big">🌍</div>
-          Nothing here yet. Be the first to post!
+          <div style={{fontSize: 15, fontWeight: 600}}>No posts yet</div>
+          <div style={{fontSize: 13, marginTop: 4}}>Be the first! Tap ➕ to post</div>
         </div>
       ) : (
         <div className="explore-grid">
