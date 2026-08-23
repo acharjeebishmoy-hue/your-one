@@ -655,7 +655,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   background: none;
   border: none;
   color: var(--accent);
-  padding: 6px;
+  padding: 8px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1017,8 +1017,8 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   border-radius: 6px;
   flex-shrink: 0;
 }
-.sb-text { min-width: 0; flex: 1; overflow: hidden; }
-.sb-text b { display: block; font-size: 13px; }
+.sb-text { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sb-text b { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .sb-cap {
   color: var(--muted);
   font-size: 12px;
