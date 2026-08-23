@@ -458,11 +458,9 @@ export function MessagesPage() {
                         if (e.key === "Enter") send();
                       }}
                     />
-                    {text.trim() ? (
-                      <button className="send-icon" disabled={sending} onClick={() => send()} title="Send">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                      </button>
-                    ) : null}
+                    <button className={`send-icon ${sending ? 'sending' : ''}`} disabled={sending || !text.trim()} onClick={() => send()} title="Send">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
                   </>
                 )}
               </div>
