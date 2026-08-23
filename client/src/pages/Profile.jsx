@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { plural, isOnline } from "../utils.js";
+import { SafeConfirm } from "../components/SafeConfirm.jsx";
 
 export function Profile() {
   const { name } = useParams();
@@ -15,6 +16,7 @@ export function Profile() {
   const [editing, setEditing] = useState(false);
   const [showList, setShowList] = useState(null);
   const [listUsers, setListUsers] = useState([]);
+  const [confirmBlock, setConfirmBlock] = useState(false);
   const fileRef = useRef(null);
 
   async function load() {
@@ -58,11 +60,17 @@ export function Profile() {
     if (isBlocked) {
       await api.del(`/api/users/${profile.id}/block`);
     } else {
-      if (!confirm(`Block ${profile.name}? You won't see their posts and they can't interact with you.`)) return;
-      await api.post(`/api/users/${profile.id}/block`);
-      if (isFollowing) {
-        setData((d) => ({ ...d, isFollowing: false, stats: { ...d.stats, followers: d.stats.followers - 1 } }));
-      }
+      setConfirmBlock(true);
+      return;
+    }
+    setData((d) => ({ ...d, isBlocked: !d.isBlocked }));
+  }
+
+  async function doBlock() {
+    setConfirmBlock(false);
+    await api.post(`/api/users/${profile.id}/block`);
+    if (isFollowing) {
+      setData((d) => ({ ...d, isFollowing: false, stats: { ...d.stats, followers: d.stats.followers - 1 } }));
     }
     setData((d) => ({ ...d, isBlocked: !d.isBlocked }));
   }
@@ -194,6 +202,18 @@ export function Profile() {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmBlock && (
+        <SafeConfirm
+          icon="🚫"
+          title={`Block ${profile.name}?`}
+          message="You won't see their posts and they can't interact with you."
+          confirmText="Block"
+          danger
+          onConfirm={doBlock}
+          onCancel={() => setConfirmBlock(false)}
+        />
       )}
     </div>
   );
