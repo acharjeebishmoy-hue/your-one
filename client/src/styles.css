@@ -2231,10 +2231,13 @@ html.low-end .spin {
   border-radius: 20px;
 }
 .safe-confirm-icon {
-  font-size: 48px;
   margin-bottom: 12px;
-  line-height: 1;
+  color: var(--accent);
+  display: flex;
+  justify-content: center;
 }
+.safe-confirm-icon.danger { color: var(--danger); }
+.safe-confirm-icon.success { color: #22c55e; }
 .safe-confirm-title {
   font-size: 18px;
   font-weight: 700;
