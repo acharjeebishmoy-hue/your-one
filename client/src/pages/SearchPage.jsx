@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Avatar } from "../components/Avatar.jsx";
+import { IconEmptySearch, IconNoResults } from "../components/Icons.jsx";
 import { isOnline } from "../utils.js";
 
 export function SearchPage() {
@@ -72,12 +73,12 @@ export function SearchPage() {
 
       {!query.trim() ? (
         <div className="empty">
-          <div className="big">🔍</div>
+          <IconEmptySearch size={48} />
           Find your friends by name.
         </div>
       ) : !loading && results.length === 0 && searched ? (
         <div className="empty">
-          <div className="big">🤷</div>
+          <IconNoResults size={48} />
           No one found for "{query.trim()}".
           <div style={{ marginTop: 8, fontSize: 13 }}>Try a different name or spelling.</div>
         </div>
