@@ -49,7 +49,7 @@ export function StoryComposer({ onClose, onCreated }) {
               <img src={preview} alt="preview" />
             ) : (
               <>
-                <div style={{ fontSize: 34 }}>📸</div>
+                <div style={{ fontSize: 34 }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
                 <div style={{ marginTop: 8 }}>Click to add a photo</div>
               </>
             )}
@@ -64,7 +64,7 @@ export function StoryComposer({ onClose, onCreated }) {
           <button className="btn block" disabled={busy || (!preview && !caption.trim())} onClick={submit}>
             {busy ? "Posting…" : "Share to story"}
           </button>
-          <div className="hint">Your story disappears after 24 hours ⏳</div>
+          <div className="hint">Your story disappears after 24 hours</div>
         </div>
       </div>
     </div>
