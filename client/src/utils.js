@@ -32,6 +32,23 @@ export function formatDate(iso) {
   return Number.isNaN(t) ? "" : new Date(t).toLocaleString();
 }
 
+export function formatEventDate(iso) {
+  const t = parseDate(iso);
+  if (Number.isNaN(t)) return "";
+  const d = new Date(t);
+  const month = d.toLocaleString("en", { month: "short" });
+  const day = d.getDate();
+  const hour = d.toLocaleString("en", { hour: "numeric", minute: "2-digit" });
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+  if (isToday) return `Today at ${hour}`;
+  if (isTomorrow) return `Tomorrow at ${hour}`;
+  return `${month} ${day} at ${hour}`;
+}
+
 export function plural(n, word) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
