@@ -83,7 +83,7 @@ export function StoryViewer({ groups, startGroup, onClose }) {
             {story.caption && <div className="sv-caption">{story.caption}</div>}
           </>
         ) : (
-          <div className="sv-text-only">{story.caption || "✨"}</div>
+          <div className="sv-text-only">{story.caption || ""}</div>
         )}
       </div>
 
