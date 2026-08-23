@@ -6,10 +6,11 @@ import { useAuth } from "../auth.jsx";
 import { timeAgo } from "../utils.js";
 import { Avatar } from "./Avatar.jsx";
 import { PushToggle } from "./PushToggle.jsx";
+import { IconNotifHeart, IconNotifPerson, IconNotifComment, IconNotifShare, IconNotifEnvelope, IconNotifAt, IconNotifCalendar } from "./Icons.jsx";
 
 function notifText(n) {
   const who = <b>{n.actor.name}</b>;
-  if (n.type === "join") return <span>{who} joined the group 🎉</span>;
+  if (n.type === "join") return <span>{who} joined the group</span>;
   if (n.type === "follow") return <span>{who} started following you</span>;
   if (n.type === "like") return <span>{who} liked your post</span>;
   if (n.type === "mention") return <span>{who} mentioned you in a post</span>;
@@ -30,14 +31,15 @@ function NotifIcon({ type }) {
     mention: "#f39c12", share: "#27ae60", join: "#9b59b6", message: "#1E88E5",
     reply: "#1E88E5", event_rsvp: "#e67e22",
   };
-  const icons = {
-    like: "❤️", love: "❤️", follow: "👤", comment: "💬",
-    mention: "@", share: "↗️", join: "🎉", message: "✉️",
-    reply: "💬", event_rsvp: "📅",
+  const iconMap = {
+    like: IconNotifHeart, love: IconNotifHeart, follow: IconNotifPerson, comment: IconNotifComment,
+    mention: IconNotifAt, share: IconNotifShare, join: IconNotifPerson, message: IconNotifEnvelope,
+    reply: IconNotifComment, event_rsvp: IconNotifCalendar,
   };
+  const Icon = iconMap[type];
   return (
     <span className="notif-icon" style={{ background: colors[type] || "#999" }}>
-      {icons[type] || "•"}
+      {Icon ? <Icon size={12} /> : <span style={{color:"white",fontWeight:700,fontSize:11}}>@</span>}
     </span>
   );
 }
@@ -118,7 +120,7 @@ export function NotificationsBell() {
           </div>
           {items.length === 0 ? (
             <div className="notif-empty">
-              <div className="notif-empty-icon">🔔</div>
+              <div className="notif-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{opacity:0.3}}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
               <div className="notif-empty-text">No notifications yet</div>
               <div className="notif-empty-sub">Likes, comments, and follows will show up here.</div>
             </div>
