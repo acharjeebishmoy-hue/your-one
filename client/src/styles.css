@@ -2099,3 +2099,86 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   .bottom-nav { display: none; }
   .msg-toast { bottom: 24px; }
 }
+
+/* ===== LOW-END DEVICE PERFORMANCE ===== */
+/* CSS containment — browser skips layout/paint for off-screen regions */
+.post, .event-card, .notif-item, .msg-list-item, .grid-tile, .bubble {
+  contain: layout style;
+}
+.post-img, .post-video, .chat-img, .notif-thumb, .grid-tile img {
+  contain: layout size style;
+}
+/* GPU-accelerate only the most critical animations */
+.bottom-nav, .fab, .msg-toast {
+  will-change: transform;
+}
+/* Reduce shadow complexity on all cards */
+.post, .event-card, .side-card {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+/* Lighter font rendering */
+body {
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: auto;
+}
+/* Simpler animations — shorter, fewer transforms */
+@keyframes spin { to { transform: rotate(360deg); } }
+.anim-fast { animation-duration: 0.15s !important; }
+/* Lazy image loading hint */
+img[loading="lazy"] {
+  content-visibility: auto;
+}
+/* Reduce paint on scrollable areas */
+.msg-body, .notif-list, .pm-comments, .msg-list {
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+}
+/* Smaller avatars on low-end to reduce image decode */
+@media (max-width: 640px) {
+  .notif-icon { width: 16px; height: 16px; font-size: 9px; }
+  .notif-thumb { width: 40px; height: 40px; }
+  .notif-item { padding: 10px 12px; gap: 8px; }
+  .notif-item .n-text { font-size: 13px; }
+  .notif-item .n-time { font-size: 11px; }
+}
+
+/* ===== LOW-END / REDUCED MOTION — KILL HEAVY EFFECTS ===== */
+html.low-end *,
+html.reduced-motion * {
+  animation-duration: 0.01s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01s !important;
+}
+html.low-end .post,
+html.low-end .event-card,
+html.low-end .notif-item,
+html.low-end .grid-tile,
+html.low-end .bubble {
+  box-shadow: none;
+}
+html.low-end .post-img,
+html.low-end .grid-tile img {
+  object-fit: cover;
+  contain: layout size;
+}
+html.low-end .notif-dropdown {
+  animation: none;
+}
+html.low-end .fab {
+  box-shadow: none;
+}
+html.low-end .reaction-picker,
+html.low-end .mention-picker {
+  animation: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+/* Disable story animations */
+html.low-end .sv-fill.active {
+  animation: none;
+  width: 100%;
+}
+/* Simpler spinner */
+html.low-end .spin {
+  border-width: 2px;
+  animation-duration: 1.2s;
+}
