@@ -38,12 +38,14 @@ export function Events() {
     <div className="page">
       <div className="tabs">
         <span className="tab active">Events</span>
-        {user?.name && (
-          <button className="btn small" style={{ marginLeft: "auto" }} onClick={() => setCreating(true)}>
+      </div>
+      {user?.name && (
+        <div style={{ textAlign: "right", marginBottom: 16 }}>
+          <button className="btn small" onClick={() => setCreating(true)}>
             ＋ Create event
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {!events ? (
         <div className="spin" />
