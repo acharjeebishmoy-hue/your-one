@@ -1184,7 +1184,7 @@ app.post("/api/calls/:id/end", wrap(async (req, res) => {
 // Poll for incoming/updated calls
 app.get("/api/calls/poll", wrap(async (req, res) => {
   const user = await deviceUser(req);
-  if (!user?.name) return res.json({ call: null });
+  if (!user) return res.json({ call: null });
   // Find the most recent active/ringing call involving this user
   const call = await db.prepare("SELECT c.*, u1.name as caller_name, u1.avatar as caller_avatar, u2.name as callee_name, u2.avatar as callee_avatar FROM calls c JOIN users u1 ON c.caller_id = u1.id JOIN users u2 ON c.callee_id = u2.id WHERE (c.caller_id = ? OR c.callee_id = ?) AND c.status IN ('ringing', 'active') ORDER BY c.created_at DESC LIMIT 1").get(user.id, user.id);
   if (!call) return res.json({ call: null });
