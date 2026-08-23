@@ -130,7 +130,7 @@ export function PostCard({ post, onDeleted }) {
   async function reportPost() {
     setConfirmReport(false);
     await api.post(`/api/posts/${post.id}/report`, { reason: "reported by user" });
-    setAlertMsg({ icon: "✅", title: "Reported", message: "Thanks for keeping the group safe!" });
+    setAlertMsg({ icon: "check", title: "Reported", message: "Thanks for keeping the group safe!" });
   }
 
   const postLink = () => `${location.origin}/p/${post.id}`;
@@ -146,7 +146,7 @@ export function PostCard({ post, onDeleted }) {
       document.execCommand("copy");
       ta.remove();
     }
-    setShareMsg("Link copied! 🔗");
+    setShareMsg("Link copied!");
     setTimeout(() => setShareMsg(""), 2500);
   }
 
@@ -158,7 +158,7 @@ export function PostCard({ post, onDeleted }) {
           text: post.caption || "Check out this post on Your One",
           url: postLink(),
         });
-        setShareMsg("Sent! ✅");
+        setShareMsg("Sent!");
         setTimeout(() => setShareMsg(""), 2500);
         return;
       } catch (e) {
@@ -176,7 +176,7 @@ export function PostCard({ post, onDeleted }) {
       onDeleted?.(d.post); // prepend the share to the feed
       setSharing(false);
       setShareText("");
-      setShareMsg("Shared to your feed! ✅");
+      setShareMsg("Shared to your feed!");
       setTimeout(() => setShareMsg(""), 2500);
     } catch (e) {
       setShareErr(e.message || "Couldn't share — try again.");
@@ -203,12 +203,12 @@ export function PostCard({ post, onDeleted }) {
           <button className="ph-del" title="More" onClick={() => setMenuOpen((o) => !o)}>⋯</button>
           {menuOpen && (
             <div className="dropdown menu-drop" style={{ width: 180 }}>
-              <button onClick={() => { copyLink(); setMenuOpen(false); }}>🔗 Copy</button>
-              <button onClick={() => { setSharing(true); setMenuOpen(false); }}>📤 Share</button>
+              <button onClick={() => { copyLink(); setMenuOpen(false); }}>Copy</button>
+              <button onClick={() => { setSharing(true); setMenuOpen(false); }}>Share</button>
               {isMine ? (
-                <button onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}>🗑 Delete</button>
+                <button onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-2,marginRight:6}}><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>
               ) : (
-                <button onClick={() => { setMenuOpen(false); setConfirmReport(true); }}>🚩 Report</button>
+                <button onClick={() => { setMenuOpen(false); setConfirmReport(true); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-2,marginRight:6}}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>Report</button>
               )}
             </div>
           )}
@@ -320,12 +320,11 @@ export function PostCard({ post, onDeleted }) {
 
       <form className="comment-box" onSubmit={addComment}>
         <input
-          placeholder="💬"
+          placeholder="Add a comment..."
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        <button type="submit" disabled={!text.trim() || busy} className="comment-send">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        <button type="submit" disabled={!text.trim() || busy} className="comment-send">              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </form>
 
@@ -333,7 +332,7 @@ export function PostCard({ post, onDeleted }) {
         <div className="modal-backdrop" onClick={() => setSharing(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
-              <span>📤 Share</span>
+              <span>Share</span>
               <button className="modal-close" onClick={() => setSharing(false)}>✕</button>
             </div>
             <div className="modal-body">
@@ -346,13 +345,13 @@ export function PostCard({ post, onDeleted }) {
               </div>
               <div className="share-actions">
                 <button className="btn share-act" onClick={shareWithFriends} disabled={busy}>
-                  📲 Share
+                  Share
                 </button>
                 <button className="btn ghost share-act" onClick={copyLink} disabled={busy}>
-                  🔗 Copy
+                  Copy
                 </button>
               </div>
-              <div className="share-note">✏️ Repost:</div>
+              <div className="share-note">Repost:</div>
               <textarea
                 className="textarea-input"
                 placeholder="Say something about it… (optional)"
@@ -372,7 +371,7 @@ export function PostCard({ post, onDeleted }) {
 
       {confirmDelete && (
         <SafeConfirm
-          icon="🗑"
+          icon="trash"
           title="Delete post?"
           message="This post will be permanently removed."
           confirmText="Delete"
@@ -384,7 +383,7 @@ export function PostCard({ post, onDeleted }) {
 
       {confirmReport && (
         <SafeConfirm
-          icon="🚩"
+          icon="report"
           title="Report this post?"
           message="We'll review it and take action if needed."
           confirmText="Report"
