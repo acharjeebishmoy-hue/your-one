@@ -72,10 +72,10 @@ export function Feed({ view, setView, version = 0, onCompose }) {
     <div className="page">
       <div className="tabs">
         <button className={`tab ${view === "following" ? "active" : ""}`} onClick={() => setView("following")}>
-          Following
+          <span className="tab-icon">👥</span> Following
         </button>
         <button className={`tab ${view === "everyone" ? "active" : ""}`} onClick={() => setView("everyone")}>
-          Everyone
+          <span className="tab-icon">🌍</span> Everyone
         </button>
       </div>
 
@@ -113,7 +113,8 @@ export function Feed({ view, setView, version = 0, onCompose }) {
         ) : posts.length === 0 ? (
           <div className="empty">
             <div className="big">🌱</div>
-            Your feed is quiet. Follow people (try <b>Explore</b>) or create your first post!
+            <div style={{fontSize: 15, fontWeight: 600}}>Empty feed</div>
+            <div style={{fontSize: 13, marginTop: 4}}>Tap 👤 to find friends, or ➕ to post</div>
           </div>
         ) : (
           posts.map((p) => <PostCard key={p.id} post={p} onDeleted={removePost} />)
