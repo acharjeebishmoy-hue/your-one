@@ -43,7 +43,7 @@ export function Explore() {
 
       {user?.name && suggestions.length > 0 && (
         <div className="suggestions">
-          <div className="sugg-head">👋 People you may know</div>
+          <div className="sugg-head">People you may know</div>
           <div className="sugg-row">
             {suggestions.map((u) => (
               <div key={u.id} className="sugg-card">
@@ -68,7 +68,7 @@ export function Explore() {
         <div className="empty">
           <IconEmptyFeed size={48} />
           <div style={{fontSize: 15, fontWeight: 600}}>No posts yet</div>
-          <div style={{fontSize: 13, marginTop: 4}}>Be the first! Tap ➕ to post</div>
+          <div style={{fontSize: 13, marginTop: 4}}>Be the first! Tap + to post</div>
         </div>
       ) : (
         <div className="explore-grid">
@@ -77,13 +77,17 @@ export function Explore() {
               {p.video ? (
                 <>
                   <video src={p.video} muted playsInline preload="metadata" />
-                  <span className="tile-badge">🎬</span>
+                  <span className="tile-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5,3 19,12 5,21"/></svg></span>
                 </>
               ) : p.image ? (
                 <img src={p.image} alt={p.caption || "post"} loading="lazy" />
               ) : (
                 <div className="tile-text">{p.caption}</div>
               )}
+              <div className="tile-author">
+                <Avatar src={p.author.avatar} username={p.author.name} size={16} ring={false} />
+                <span>{p.author.name}</span>
+              </div>
             </div>
           ))}
         </div>
