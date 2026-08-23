@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
+import { POLL_MS } from "../perf.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { timeAgo } from "../utils.js";
@@ -95,7 +96,7 @@ export function MessagesPage() {
         })
         .catch(() => {});
     load();
-    const t = setInterval(load, 10000);
+    const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [user]);
 
@@ -116,7 +117,7 @@ export function MessagesPage() {
         })
         .catch(() => {});
     load();
-    const t = setInterval(load, 4000);
+    const t = setInterval(load, POLL_MS / 2.5);
     return () => {
       cancelled = true;
       clearInterval(t);
