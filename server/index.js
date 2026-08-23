@@ -1175,6 +1175,12 @@ app.post("/api/calls/start", wrap(async (req, res) => {
     callerName: user.name, callerAvatar: user.avatar,
     offer, candidates: [],
   });
+  // Also send a real push notification (works even when app is closed)
+  sendPushToUser(calleeId, {
+    title: user.name,
+    body: "Incoming call...",
+    url: "/messages",
+  });
   res.json({ ok: true, callId: result.lastInsertRowid });
 }));
 
