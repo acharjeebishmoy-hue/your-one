@@ -532,6 +532,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   white-space: nowrap;
 }
 .side-person-name:hover { text-decoration: underline; }
+.side-card .btn.small { padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; }
 .side-card-link {
   display: block;
   text-align: center;
@@ -549,20 +550,24 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
 .tabs {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 20px;
 }
 .tab {
   background: none;
   border: none;
-  padding: 8px 18px;
+  padding: 8px 14px;
   font-size: 14px;
   font-weight: 600;
   color: var(--muted);
-  border-radius: 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
-.tab.active { color: #fff; background: var(--accent); }
-.tab-icon { margin-right: 4px; font-size: 14px; }
+.tab.active { color: var(--accent); background: var(--accent-soft); }
+.tab-icon { display: flex; align-items: center; }
 
 /* ---------- post card ---------- */
 .post {
@@ -577,7 +582,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 10px 14px;
 }
 .post-head .avatar-wrap { flex-shrink: 0; }
 .post-head .ph-name { font-weight: 600; font-size: 14px; }
@@ -602,7 +607,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   max-height: 70vh;
 }
 .post-body { padding: 0 14px 12px; }
-.post-actions { display: flex; align-items: center; gap: 4px; padding: 8px 0 4px; }
+.post-actions { display: flex; align-items: center; gap: 2px; padding: 4px 0 2px; }
 .action-btn {
   background: none;
   border: none;
@@ -636,7 +641,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   gap: 8px;
   align-items: center;
   border-top: 1px solid var(--border);
-  padding: 10px 14px;
+  padding: 8px 14px;
 }
 .comment-box input {
   flex: 1;
@@ -644,18 +649,22 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   outline: none;
   font-size: 14px;
   background: none;
+  height: 36px;
 }
-.comment-box button {
-  background: var(--accent);
+.comment-send {
+  background: none;
   border: none;
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 8px 20px;
-  border-radius: 22px;
-  white-space: nowrap;
+  color: var(--accent);
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.12s ease, opacity 0.12s ease;
 }
-.comment-box button:disabled { opacity: 0.5; cursor: default; pointer-events: none; }
+.comment-send:hover { transform: scale(1.1); }
+.comment-send:disabled { opacity: 0.35; cursor: default; transform: none; }
 
 /* ---------- avatar ---------- */
 .avatar-wrap { position: relative; }
@@ -998,24 +1007,24 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   border-radius: 10px;
   padding: 10px 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
 .share-banner:hover { background: var(--hover); }
 .share-banner img {
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
-.sb-text { min-width: 0; }
+.sb-text { min-width: 0; flex: 1; overflow: hidden; }
+.sb-text b { display: block; font-size: 13px; }
 .sb-cap {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 340px;
 }
 .share-preview {
   display: flex;
@@ -1747,7 +1756,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
     --hairline: #333333;
   }
   .post-img { background: var(--soft); }
-  .tab.active { color: #fff; background: var(--accent); }
+  .tab.active { color: var(--accent); background: var(--accent-soft); }
   .btn.ghost { color: var(--accent); }
   .reaction-picker { background: var(--card); }
   .mention-picker { background: var(--card); }
@@ -1788,7 +1797,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
 
   /* bigger feed tabs */
   .tabs { gap: 6px; margin: 0 12px 14px; }
-  .tab { flex: 1; padding: 11px 12px; font-size: 15px; border-radius: 22px; }
+  .tab { flex: 1; padding: 10px 12px; font-size: 14px; border-radius: 10px; justify-content: center; }
 
   /* Facebook-style: clean top bar on phones (bottom nav covers the rest) */
   .nav-actions .icon-btn.desktop-only { display: none; }
