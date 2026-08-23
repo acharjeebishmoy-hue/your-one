@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
+import { POLL_MS } from "../perf.js";
 import { useAuth } from "../auth.jsx";
 import { timeAgo } from "../utils.js";
 import { Avatar } from "./Avatar.jsx";
@@ -58,7 +59,7 @@ export function NotificationsBell() {
   useEffect(() => {
     if (!user) return;
     refresh().catch(() => {});
-    const t = setInterval(() => refresh().catch(() => {}), 10000);
+    const t = setInterval(() => refresh().catch(() => {}), POLL_MS);
     return () => clearInterval(t);
   }, [user]);
 
