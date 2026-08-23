@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bg" x1="0.2" y1="0" x2="0.8" y2="1">
-      <stop offset="0%" stop-color="#6366F1"/>
-      <stop offset="50%" stop-color="#4F46E5"/>
-      <stop offset="100%" stop-color="#3730A3"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A6CF7"/>
+      <stop offset="100%" stop-color="#2B4CE8"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
-  <!-- White Y shape -->
-  <path d="M140 130 L256 280" stroke="#ffffff" stroke-width="56" stroke-linecap="round" fill="none"/>
-  <path d="M372 130 L256 280" stroke="#ffffff" stroke-width="56" stroke-linecap="round" fill="none"/>
-  <path d="M256 280 L256 400" stroke="#ffffff" stroke-width="56" stroke-linecap="round" fill="none"/>
-  <!-- White 1 -->
-  <path d="M340 160 L340 370" stroke="#ffffff" stroke-width="56" stroke-linecap="round" fill="none"/>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+  <!-- Y letter -->
+  <path d="M140 120 L210 240 L140 380 L190 380 L230 290 L270 380 L320 380 L250 240 L320 120 L270 120 L230 210 L190 120 Z" fill="white"/>
+  <!-- 1 number -->
+  <path d="M340 120 L380 120 L380 380 L340 380 L340 160 L310 190 L310 150 Z" fill="white" opacity="0.9"/>
+  <!-- Subtle shine -->
+  <rect width="512" height="256" rx="96" ry="96" fill="white" opacity="0.06"/>
 </svg>
