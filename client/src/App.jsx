@@ -80,12 +80,15 @@ export default function App() {
         remoteStream={call.remoteStream}
         callDuration={call.callDuration}
         onAnswer={() => {
-          if (call.activeCall?.offer) {
+          const ac = call.activeCall;
+          if (ac?.offer) {
             call.answerCall({
-              id: call.activeCall.id,
-              callerId: call.activeCall.otherUserId,
-              offer: call.activeCall.offer,
-              candidates: call.activeCall.candidates || [],
+              id: ac.id,
+              callerId: ac.otherUserId,
+              offer: ac.offer,
+              candidates: ac.candidates || [],
+              callerName: ac.otherUser?.name,
+              callerAvatar: ac.otherUser?.avatar,
             });
           }
         }}
