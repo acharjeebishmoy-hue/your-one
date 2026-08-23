@@ -6,6 +6,7 @@ import { timeAgo, plural, isOnline, REACTION_EMOJI, reactionSummary } from "../u
 import { RichText } from "./RichText.jsx";
 import { Avatar } from "./Avatar.jsx";
 import { HeartIcon, CommentIcon, ShareIcon } from "./PostCard.jsx";
+import { SafeConfirm, SafeAlert } from "./SafeConfirm.jsx";
 
 export function PostModal() {
   const { id } = useParams();
@@ -114,24 +115,28 @@ export function PostModal() {
     }
   }
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReport, setConfirmReport] = useState(false);
+  const [alertMsg, setAlertMsg] = useState(null);
+
   async function deletePost() {
-    if (!confirm("Delete this post?")) return;
+    setConfirmDelete(false);
     try {
       await api.del(`/api/posts/${post.id}`);
       window.dispatchEvent(new CustomEvent("post-deleted", { detail: post.id }));
       navigate(-1);
     } catch (e) {
-      alert(e.message);
+      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
     }
   }
 
   async function reportPost() {
-    if (!confirm("Report this post?")) return;
+    setConfirmReport(false);
     try {
       await api.post(`/api/posts/${post.id}/report`, { reason: "reported by user" });
-      alert("Reported. Thanks for keeping the group safe!");
+      setAlertMsg({ icon: "✅", title: "Reported", message: "Thanks for keeping the group safe!" });
     } catch (e) {
-      alert(e.message);
+      setAlertMsg({ icon: "❌", title: "Error", message: e.message });
     }
   }
 
@@ -168,9 +173,9 @@ export function PostModal() {
                 <div className="dropdown menu-drop" style={{ width: 170, right: 0, left: "auto" }}>
                   <button onClick={() => { navigator.clipboard.writeText(location.origin + "/p/" + post.id); setShareMsg("Link copied! 🔗"); setTimeout(() => setShareMsg(""), 2500); setMenuOpen(false); }}>🔗 Copy link</button>
                   {isMine ? (
-                    <button onClick={deletePost}>🗑 Delete post</button>
+                    <button onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}>🗑 Delete</button>
                   ) : (
-                    <button onClick={reportPost}>🚩 Report post</button>
+                    <button onClick={() => { setMenuOpen(false); setConfirmReport(true); }}>🚩 Report</button>
                   )}
                 </div>
               )}
@@ -259,6 +264,39 @@ export function PostModal() {
           </form>
         </div>
       </div>
+
+      {confirmDelete && (
+        <SafeConfirm
+          icon="🗑"
+          title="Delete post?"
+          message="This post will be permanently removed."
+          confirmText="Delete"
+          danger
+          onConfirm={deletePost}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {confirmReport && (
+        <SafeConfirm
+          icon="🚩"
+          title="Report this post?"
+          message="We'll review it and take action if needed."
+          confirmText="Report"
+          danger
+          onConfirm={reportPost}
+          onCancel={() => setConfirmReport(false)}
+        />
+      )}
+
+      {alertMsg && (
+        <SafeAlert
+          icon={alertMsg.icon}
+          title={alertMsg.title}
+          message={alertMsg.message}
+          onClose={() => setAlertMsg(null)}
+        />
+      )}
     </div>
   );
 }
