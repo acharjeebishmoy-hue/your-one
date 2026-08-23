@@ -70,7 +70,7 @@ export function DesktopRightPanel() {
       )}
 
       <div className="side-card side-card-footer">
-        <div className="side-footer-text">Your One · Made with ❤️</div>
+        <div className="side-footer-text">Your One</div>
       </div>
     </div>
   );
