@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { POLL_MS, SKIP_PRESENCE } from "./perf.js";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api.js";
 import { useAuth } from "./auth.jsx";
@@ -34,10 +35,10 @@ export default function App() {
 
   // Presence heartbeat — friends see you as online.
   useEffect(() => {
-    if (!user?.name) return;
+    if (!user?.name || SKIP_PRESENCE) return;
     const ping = () => api.post("/api/presence").catch(() => {});
     ping();
-    const t = setInterval(ping, 30000);
+    const t = setInterval(ping, POLL_MS * 3);
     return () => clearInterval(t);
   }, [user?.name]);
 
