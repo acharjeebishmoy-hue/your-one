@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
+import { POLL_MS } from "../perf.js";
 import { useAuth } from "../auth.jsx";
 import { Avatar } from "./Avatar.jsx";
 
@@ -54,7 +55,7 @@ export function MessageToast() {
         .catch(() => {});
 
     load();
-    const t = setInterval(load, 8000);
+    const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [user, location.pathname]);
 
