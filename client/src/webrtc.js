@@ -30,8 +30,10 @@ export function useCall(userId) {
   const startTimeRef = useRef(null);
   const localStreamRef = useRef(null);
   const activeCallRef = useRef(null);
+  const processedAnswerRef = useRef(false);
+  const processedCandidatesRef = useRef(new Set());
 
-  // Keep activeCallRef in sync
+  // Keep refs in sync
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
 
   function doCleanup() {
@@ -45,6 +47,8 @@ export function useCall(userId) {
     setCallDuration(0);
     startTimeRef.current = null;
     callIdRef.current = null;
+    processedAnswerRef.current = false;
+    processedCandidatesRef.current = new Set();
   }
 
   useEffect(() => () => doCleanup(), []);
@@ -71,51 +75,82 @@ export function useCall(userId) {
     return stream;
   }
 
-  function createPC() {
+  function createPC(isCaller) {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     const iceBuffer = [];
     let iceSendTimer = null;
+
     function flushIce() {
       if (iceBuffer.length && callIdRef.current) {
         const batch = [...iceBuffer];
         iceBuffer.length = 0;
-        api.post(`/api/calls/${callIdRef.current}/candidate`, { candidates: batch }).catch(() => {});
+        log("sending", batch.length, "ICE candidates");
+        api.post(`/api/calls/${callIdRef.current}/candidate`, { candidates: batch }).catch(e => log("ICE send failed:", e));
       }
     }
+
     pc.onicecandidate = (e) => {
       if (e.candidate) {
         iceBuffer.push(e.candidate.toJSON());
-        if (!iceSendTimer) iceSendTimer = setTimeout(() => { iceSendTimer = null; flushIce(); }, 200);
+        if (!iceSendTimer) iceSendTimer = setTimeout(() => { iceSendTimer = null; flushIce(); }, 150);
       }
     };
+
     pc.onicegatheringstatechange = () => {
       if (pc.iceGatheringState === "complete") { clearTimeout(iceSendTimer); iceSendTimer = null; flushIce(); }
       log("ICE gathering:", pc.iceGatheringState);
     };
+
     pc.ontrack = (e) => {
-      log("ontrack!", e.streams[0]?.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+      log("!!! ontrack !!!", e.streams[0]?.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
       log("remote audio tracks:", e.streams[0]?.getAudioTracks().length);
-      setRemoteStream(e.streams[0]);
+      if (e.streams[0]) {
+        setRemoteStream(e.streams[0]);
+      } else {
+        // Some browsers send tracks without a stream wrapper
+        log("No stream on track, creating one");
+        const s = new MediaStream([e.track]);
+        setRemoteStream(s);
+      }
     };
-    pc.onaddstream = (e) => {
-      log("onaddstream (legacy)", e.stream?.getTracks().map(t => t.kind));
-    };
+
     pc.oniceconnectionstatechange = () => {
       log("ICE state:", pc.iceConnectionState);
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        log("!!! ICE CONNECTED !!!");
+      }
+      if (pc.iceConnectionState === "failed") {
+        log("!!! ICE FAILED — no sound possible without TURN server !!!");
+      }
     };
+
     pc.onconnectionstatechange = () => {
       log("connection state:", pc.connectionState);
-      if (pc.connectionState === "disconnected" || pc.connectionState === "failed") endCall();
+      if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+        log("connection lost, ending call");
+        endCall();
+      }
     };
-    // Warn if no remote track after 15s — ICE likely failed
+
+    // Diagnostic timeout
     setTimeout(() => {
-      if (pcRef.current === pc && !remoteStream) {
-        log("WARNING: No remote audio after 15s!");
-        log("PC states:", pc.signalingState, pc.iceConnectionState, pc.iceGatheringState);
-        log("Remote streams:", pc.getRemoteStreams().length);
-        log("Local streams:", pc.getLocalStreams().length);
+      if (pcRef.current === pc) {
+        log("=== DIAGNOSTIC after 15s ===");
+        log("signaling:", pc.signalingState);
+        log("ICE:", pc.iceConnectionState);
+        log("gathering:", pc.iceGatheringState);
+        log("remote streams:", pc.getRemoteStreams().length);
+        log("local streams:", pc.getLocalStreams().length);
+        log("remoteDescription:", !!pc.remoteDescription);
+        log("localDescription:", !!pc.localDescription);
+        if (pc.getRemoteStreams().length > 0) {
+          const tracks = pc.getRemoteStreams()[0].getTracks();
+          log("remote tracks:", tracks.map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+        }
+        log("=== END DIAGNOSTIC ===");
       }
     }, 15000);
+
     pcRef.current = pc;
     return pc;
   }
@@ -123,34 +158,42 @@ export function useCall(userId) {
   async function startCall(calleeId, video = false) {
     log("startCall", calleeId);
     const stream = await getLocalMedia(video);
-    const pc = createPC();
+    const pc = createPC(true);
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     const d = await api.post("/api/calls/start", { calleeId, offer: pc.localDescription.toJSON() });
     log("call created, id:", d.callId);
     callIdRef.current = d.callId;
+    processedAnswerRef.current = false;
+    // We don't know the callee's name yet — it will be filled in when the call becomes active
     setActiveCall({ id: d.callId, status: "ringing", isCaller: true, video, otherUserId: calleeId });
   }
 
   async function answerCall(callData, video = false) {
     log("answerCall", callData.id, "offer:", !!callData.offer);
     const stream = await getLocalMedia(video);
-    const pc = createPC();
+    const pc = createPC(false);
     stream.getTracks().forEach(t => { log("adding track:", t.kind, t.enabled); pc.addTrack(t, stream); });
     log("PC signaling after tracks:", pc.signalingState);
     if (callData.offer) await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
     if (callData.candidates?.length) {
-      for (const c of callData.candidates) { try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {} }
+      log("adding", callData.candidates.length, "early candidates from caller");
+      for (const c of callData.candidates) { try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) { log("candidate error:", e.message); } }
     }
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await api.post(`/api/calls/${callData.id}/answer`, { answer: pc.localDescription.toJSON() });
     log("answer sent!");
     callIdRef.current = callData.id;
+    processedAnswerRef.current = true;
     startTimeRef.current = Date.now();
     startDurationTimer();
-    setActiveCall({ id: callData.id, status: "active", isCaller: false, video, otherUserId: callData.callerId, otherUser: callData.callerName ? { name: callData.callerName, avatar: callData.callerAvatar } : undefined });
+    setActiveCall({
+      id: callData.id, status: "active", isCaller: false, video,
+      otherUserId: callData.callerId,
+      otherUser: callData.callerName ? { name: callData.callerName, avatar: callData.callerAvatar } : undefined,
+    });
   }
 
   async function endCall() {
@@ -182,37 +225,13 @@ export function useCall(userId) {
     }, 1000);
   }
 
-  // ---- SIGNALING: SSE + Polling fallback ----
-  // SSE dies after ~30s on Render free tier, so polling catches what SSE misses.
+  // ---- SIGNALING: Polling only (SSE dies after 30s on Render free tier) ----
   useEffect(() => {
     if (!userId) return;
-    log("starting signaling for user", userId);
+    log("starting polling for user", userId);
     let cancelled = false;
-    let retryTimer = null;
     let pollTimer = null;
 
-    // --- SSE connection (fast path — instant notifications) ---
-    function connectSSE() {
-      if (cancelled) return;
-      const es = new EventSource(`/api/calls/stream?userId=${userId}`);
-      es.onmessage = async (e) => {
-        if (cancelled) return;
-        try {
-          const data = JSON.parse(e.data);
-          await handleSignal(data);
-        } catch {}
-      };
-      es.onerror = () => {
-        log("SSE error, reconnecting in 3s...");
-        es.close();
-        if (!cancelled) retryTimer = setTimeout(connectSSE, 3000);
-      };
-      return es;
-    }
-
-    let eventSource = connectSSE();
-
-    // --- Polling fallback (slow but reliable — catches what SSE misses) ---
     async function pollOnce() {
       if (cancelled) return;
       try {
@@ -222,38 +241,53 @@ export function useCall(userId) {
           const cur = activeCallRef.current;
           const myId = callIdRef.current;
 
-          // Case 1: Incoming call (not from us)
+          // Case 1: Incoming call (not from us, not already handling)
           if (c.status === "ringing" && !c.isCaller && c.id !== myId) {
             log("POLL: incoming call", c.id);
             callIdRef.current = c.id;
+            processedAnswerRef.current = false;
             setActiveCall({
               id: c.id, status: "ringing", isCaller: false, video: false,
               otherUserId: c.callerId,
               otherUser: { name: c.callerName, avatar: c.callerAvatar },
               offer: c.offer, candidates: c.candidates || [],
             });
+            // Pre-warm mic
             try {
               const s = await navigator.mediaDevices.getUserMedia({ audio: true });
               localStreamRef.current = s;
               setLocalStream(s);
-            } catch {}
+              log("mic pre-warmed");
+            } catch { log("mic pre-warm failed"); }
 
-          // Case 2: Our call was answered
-          } else if (c.id === myId && c.status === "active" && cur?.status === "ringing" && c.answer) {
-            log("POLL: call answered!");
+          // Case 2: Our call was answered (caller receives answer)
+          } else if (c.id === myId && c.status === "active" && !processedAnswerRef.current && c.answer) {
+            log("POLL: call answered! Setting remote description...");
             if (pcRef.current?.signalingState === "have-local-offer") {
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(c.answer));
+              log("Remote description set! ICE state:", pcRef.current.iceConnectionState);
+              processedAnswerRef.current = true;
+              // Add callee's candidates
               if (c.candidates?.length) {
-                for (const cand of c.candidates) { try { await pcRef.current.addIceCandidate(new RTCIceCandidate(cand)); } catch {} }
+                log("adding", c.candidates.length, "callee candidates");
+                for (const cand of c.candidates) {
+                  const key = JSON.stringify(cand);
+                  if (!processedCandidatesRef.current.has(key)) {
+                    try { await pcRef.current.addIceCandidate(new RTCIceCandidate(cand)); processedCandidatesRef.current.add(key); } catch {}
+                  }
+                }
               }
               startTimeRef.current = startTimeRef.current || Date.now();
               startDurationTimer();
-              setActiveCall(p => p ? { ...p, status: "active" } : p);
+              const otherName = c.isCaller ? c.calleeName : c.callerName;
+              const otherAvatar = c.isCaller ? c.calleeAvatar : c.callerAvatar;
+              const otherUserId = c.isCaller ? c.calleeId : c.callerId;
+              setActiveCall(p => p ? { ...p, status: "active", otherUser: { name: otherName, avatar: otherAvatar }, otherUserId } : p);
             }
 
-          // Case 3: We answered someone's call (they polled, we're now active)
+          // Case 3: We answered and call is active (callee already answered)
           } else if (c.id === myId && c.status === "active" && cur?.status === "ringing" && !c.isCaller) {
-            log("POLL: we are active (answered via SSE)");
+            log("POLL: we are active");
             setActiveCall(p => p ? { ...p, status: "active" } : p);
 
           // Case 4: Call ended
@@ -261,66 +295,38 @@ export function useCall(userId) {
             log("POLL: call ended");
             doCleanup();
           }
+
+          // Case 5: Late ICE candidates (call already active, but candidates arrived after answer)
+          if (c.id === myId && c.status === "active" && c.candidates?.length && pcRef.current) {
+            let added = 0;
+            for (const cand of c.candidates) {
+              const key = JSON.stringify(cand);
+              if (!processedCandidatesRef.current.has(key)) {
+                try {
+                  await pcRef.current.addIceCandidate(new RTCIceCandidate(cand));
+                  processedCandidatesRef.current.add(key);
+                  added++;
+                } catch {}
+              }
+            }
+            if (added > 0) log("added", added, "late ICE candidates");
+          }
         } else if (!d.call && callIdRef.current) {
           log("POLL: call ended (null)");
           doCleanup();
         }
-      } catch {}
+      } catch (e) { log("poll error:", e.message); }
     }
 
-    function startPolling() {
-      if (pollTimer) return;
-      pollTimer = setInterval(pollOnce, 1500);
-      log("polling started (1.5s)");
-    }
+    // Start polling immediately — 1s interval for fast detection
+    pollTimer = setInterval(pollOnce, 1000);
+    log("polling started (1s)");
 
-    // Start polling immediately — SSE may die, polling is the safety net
-    startPolling();
-
-    async function handleSignal(data) {
-      log("SSE signal:", data.type, data.callId);
-      if (data.type === "incoming") {
-        log("INCOMING CALL from", data.callerName);
-        callIdRef.current = data.callId;
-        setActiveCall({
-          id: data.callId, status: "ringing", isCaller: false, video: false,
-          otherUserId: data.callerId,
-          otherUser: { name: data.callerName, avatar: data.callerAvatar },
-          offer: data.offer, candidates: data.candidates || [],
-        });
-        try {
-          const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-          localStreamRef.current = s;
-          setLocalStream(s);
-          log("mic pre-warmed");
-        } catch { log("mic pre-warm failed"); }
-
-      } else if (data.type === "answered") {
-        log("CALL ANSWERED via SSE");
-        if (data.answer && pcRef.current?.signalingState === "have-local-offer") {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-          if (data.candidates?.length) {
-            for (const cand of data.candidates) { try { await pcRef.current.addIceCandidate(new RTCIceCandidate(cand)); } catch {} }
-          }
-          startTimeRef.current = startTimeRef.current || Date.now();
-          startDurationTimer();
-          setActiveCall(p => p ? { ...p, status: "active" } : p);
-        }
-
-      } else if (data.type === "ended") {
-        log("CALL ENDED via SSE");
-        doCleanup();
-
-      } else if (data.type === "active") {
-        log("CALL NOW ACTIVE via SSE");
-        setActiveCall(p => p ? { ...p, status: "active" } : p);
-      }
-    }
+    // Also do an immediate first poll
+    pollOnce();
 
     return () => {
       cancelled = true;
-      if (eventSource) eventSource.close();
-      if (retryTimer) clearTimeout(retryTimer);
       if (pollTimer) clearInterval(pollTimer);
     };
   }, [userId]);
