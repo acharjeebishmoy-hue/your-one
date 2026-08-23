@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { PostCard } from "../components/PostCard.jsx";
@@ -16,6 +16,9 @@ export function Feed({ view, setView, version = 0, onCompose }) {
   const [storyGroups, setStoryGroups] = useState([]);
   const [viewing, setViewing] = useState(null); // group index in storyGroups
   const [composing, setComposing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const feedRef = useRef(null);
 
   const load = useCallback(async () => {
     setPosts(null);
@@ -69,8 +72,21 @@ export function Feed({ view, setView, version = 0, onCompose }) {
     return () => window.removeEventListener("post-deleted", onDeleted);
   }, []);
 
+  // Pull-to-refresh
+  function onTouchStart(e) {
+    if (window.scrollY <= 0) touchStartY.current = e.touches[0].clientY;
+  }
+  async function onTouchEnd(e) {
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if (dy > 80 && window.scrollY <= 0 && !refreshing) {
+      setRefreshing(true);
+      await load();
+      setRefreshing(false);
+    }
+  }
+
   return (
-    <div className="page">
+    <div className="page" ref={feedRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div className="tabs">
         <button className={`tab ${view === "following" ? "active" : ""}`} onClick={() => setView("following")}>
           <span className="tab-icon"><IconUsers size={16} /></span> Following
@@ -80,6 +96,7 @@ export function Feed({ view, setView, version = 0, onCompose }) {
         </button>
       </div>
 
+      {refreshing && <div className="pull-indicator"><div className="spin" style={{margin:0,width:24,height:24,borderWidth:2}} /></div>}
       <div className="feed-col">
         <button className="compose-box" onClick={onCompose} aria-label="Create post">
           <span className="cb-avatar">
