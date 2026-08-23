@@ -109,18 +109,18 @@ export function Profile() {
           <div className="profile-top">
             <h1>{profile.name}</h1>
             {isMe ? (
-              <button className="btn ghost small" onClick={() => setEditing(true)}>Edit profile</button>
+              <button className="btn ghost small" onClick={() => setEditing(true)}>✏️ Edit</button>
             ) : isBlocked ? (
-              <button className="btn small danger" onClick={block}>Unblock</button>
+              <button className="btn small danger" onClick={block}>🚫 Unblock</button>
             ) : (
               <>
                 <button className={`btn small ${isFollowing ? "ghost" : ""}`} onClick={toggleFollow}>
-                  {isFollowing ? "Following ✓" : "Follow"}
+                  {isFollowing ? "✓ Following" : "+ Follow"}
                 </button>
                 <button className="btn small ghost" onClick={() => navigate(`/messages?to=${profile.id}`)}>
-                  Message
+                  💬
                 </button>
-                <button className="btn small ghost danger-text" onClick={block}>Block</button>
+                <button className="btn small ghost danger-text" onClick={block}>🚫</button>
               </>
             )}
           </div>
@@ -146,7 +146,8 @@ export function Profile() {
       {posts.length === 0 ? (
         <div className="empty">
           <div className="big">📸</div>
-          {isMe ? "No posts yet — share something!" : "No posts yet."}
+          <div style={{fontWeight: 600}}>{isMe ? "No posts yet" : "No posts"}</div>
+          {isMe && <div style={{fontSize: 13, marginTop: 4}}>Tap ➕ to share</div>}
         </div>
       ) : (
         <div className="profile-grid">
