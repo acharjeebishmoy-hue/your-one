@@ -19,6 +19,10 @@ export function useCall(userId) {
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
   const localStreamRef = useRef(null);
+  const activeCallRef = useRef(null);
+
+  // Keep activeCallRef in sync
+  useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
 
   function doCleanup() {
     log("cleanup");
@@ -151,14 +155,17 @@ export function useCall(userId) {
     }, 1000);
   }
 
-  // ---- SSE-BASED REAL-TIME SIGNALING ----
+  // ---- SIGNALING: SSE + Polling fallback ----
+  // SSE dies after ~30s on Render free tier, so polling catches what SSE misses.
   useEffect(() => {
     if (!userId) return;
-    log("starting SSE for user", userId);
+    log("starting signaling for user", userId);
     let cancelled = false;
     let retryTimer = null;
+    let pollTimer = null;
 
-    function connect() {
+    // --- SSE connection (fast path — instant notifications) ---
+    function connectSSE() {
       if (cancelled) return;
       const es = new EventSource(`/api/calls/stream?userId=${userId}`);
       es.onmessage = async (e) => {
@@ -171,17 +178,81 @@ export function useCall(userId) {
       es.onerror = () => {
         log("SSE error, reconnecting in 3s...");
         es.close();
-        if (!cancelled) retryTimer = setTimeout(connect, 3000);
+        if (!cancelled) retryTimer = setTimeout(connectSSE, 3000);
       };
       return es;
     }
 
-    let eventSource = connect();
+    let eventSource = connectSSE();
+
+    // --- Polling fallback (slow but reliable — catches what SSE misses) ---
+    async function pollOnce() {
+      if (cancelled) return;
+      try {
+        const d = await api.get("/api/calls/poll");
+        if (d.call) {
+          const c = d.call;
+          const cur = activeCallRef.current;
+          const myId = callIdRef.current;
+
+          // Case 1: Incoming call (not from us)
+          if (c.status === "ringing" && !c.isCaller && c.id !== myId) {
+            log("POLL: incoming call", c.id);
+            callIdRef.current = c.id;
+            setActiveCall({
+              id: c.id, status: "ringing", isCaller: false, video: false,
+              otherUserId: c.callerId,
+              otherUser: { name: c.callerName, avatar: c.callerAvatar },
+              offer: c.offer, candidates: c.candidates || [],
+            });
+            try {
+              const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+              localStreamRef.current = s;
+              setLocalStream(s);
+            } catch {}
+
+          // Case 2: Our call was answered
+          } else if (c.id === myId && c.status === "active" && cur?.status === "ringing" && c.answer) {
+            log("POLL: call answered!");
+            if (pcRef.current?.signalingState === "have-local-offer") {
+              await pcRef.current.setRemoteDescription(new RTCSessionDescription(c.answer));
+              if (c.candidates?.length) {
+                for (const cand of c.candidates) { try { await pcRef.current.addIceCandidate(new RTCIceCandidate(cand)); } catch {} }
+              }
+              startTimeRef.current = startTimeRef.current || Date.now();
+              startDurationTimer();
+              setActiveCall(p => p ? { ...p, status: "active" } : p);
+            }
+
+          // Case 3: We answered someone's call (they polled, we're now active)
+          } else if (c.id === myId && c.status === "active" && cur?.status === "ringing" && !c.isCaller) {
+            log("POLL: we are active (answered via SSE)");
+            setActiveCall(p => p ? { ...p, status: "active" } : p);
+
+          // Case 4: Call ended
+          } else if (!c.call && myId) {
+            log("POLL: call ended");
+            doCleanup();
+          }
+        } else if (!d.call && callIdRef.current) {
+          log("POLL: call ended (null)");
+          doCleanup();
+        }
+      } catch {}
+    }
+
+    function startPolling() {
+      if (pollTimer) return;
+      pollTimer = setInterval(pollOnce, 1500);
+      log("polling started (1.5s)");
+    }
+
+    // Start polling immediately — SSE may die, polling is the safety net
+    startPolling();
 
     async function handleSignal(data) {
       log("SSE signal:", data.type, data.callId);
       if (data.type === "incoming") {
-        // Incoming call — show ring screen immediately
         log("INCOMING CALL from", data.callerName);
         callIdRef.current = data.callId;
         setActiveCall({
@@ -190,7 +261,6 @@ export function useCall(userId) {
           otherUser: { name: data.callerName, avatar: data.callerAvatar },
           offer: data.offer, candidates: data.candidates || [],
         });
-        // Pre-warm mic
         try {
           const s = await navigator.mediaDevices.getUserMedia({ audio: true });
           localStreamRef.current = s;
@@ -199,8 +269,7 @@ export function useCall(userId) {
         } catch { log("mic pre-warm failed"); }
 
       } else if (data.type === "answered") {
-        // Our call was answered
-        log("CALL ANSWERED");
+        log("CALL ANSWERED via SSE");
         if (data.answer && pcRef.current?.signalingState === "have-local-offer") {
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
           if (data.candidates?.length) {
@@ -212,11 +281,11 @@ export function useCall(userId) {
         }
 
       } else if (data.type === "ended") {
-        log("CALL ENDED");
+        log("CALL ENDED via SSE");
         doCleanup();
 
       } else if (data.type === "active") {
-        log("CALL NOW ACTIVE");
+        log("CALL NOW ACTIVE via SSE");
         setActiveCall(p => p ? { ...p, status: "active" } : p);
       }
     }
@@ -225,6 +294,7 @@ export function useCall(userId) {
       cancelled = true;
       if (eventSource) eventSource.close();
       if (retryTimer) clearTimeout(retryTimer);
+      if (pollTimer) clearInterval(pollTimer);
     };
   }, [userId]);
 
