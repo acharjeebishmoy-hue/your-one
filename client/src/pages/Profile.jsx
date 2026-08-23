@@ -127,12 +127,12 @@ export function Profile() {
 
           <div className="profile-stats">
             <span className="stat" onClick={() => openList("followers")} title="Followers">
-              <b>{stats.followers}</b> followers
+              {plural(stats.followers, "follower")}
             </span>
             <span className="stat" onClick={() => openList("following")} title="Following">
-              <b>{stats.following}</b> following
+              {plural(stats.following, "following")}
             </span>
-            <span><b>{stats.posts}</b> {plural(stats.posts, "post")}</span>
+            <span>{plural(stats.posts, "post")}</span>
           </div>
 
           <div className="profile-bio">
