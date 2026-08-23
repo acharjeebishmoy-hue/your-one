@@ -91,7 +91,7 @@ export function SearchPage() {
               </Link>
               <div className="search-row-info">
                 <Link to={`/u/${encodeURIComponent(u.name)}`} className="sr-name">{u.name}</Link>
-                {isOnline(u.lastSeen) && <span className="search-online-badge">🟢 Online</span>}
+                {isOnline(u.lastSeen) && <span className="search-online-badge"><svg width="8" height="8" viewBox="0 0 8 8" style={{marginRight:4,verticalAlign:1}}><circle cx="4" cy="4" r="4" fill="#22c55e"/></svg>Online</span>}
               </div>
               {following.has(u.id) ? (
                 <button className="btn small ghost" disabled>Following ✓</button>
