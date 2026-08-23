@@ -38,6 +38,38 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ===== SAFE TAP FEEDBACK ===== */
+/* Every tappable element gets a subtle press effect */
+.btn:active,
+.action-btn:active,
+.bn-item:active,
+.rail-link:active,
+.tab:active,
+.msg-list-item:active,
+.notif-item:active,
+.search-row:active,
+.grid-tile:active,
+.story-item:active,
+.sugg-card:active,
+.side-person:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+  transition: transform 0.08s ease, opacity 0.08s ease;
+}
+/* FAB press */
+.fab:active { transform: scale(0.92); }
+/* Smooth transitions for all interactive elements */
+.btn,
+.action-btn,
+.bn-item,
+.tab,
+.msg-list-item,
+.notif-item,
+.grid-tile,
+.story-item {
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
 a { color: inherit; text-decoration: none; }
 button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
@@ -2188,4 +2220,96 @@ html.low-end .sv-fill.active {
 html.low-end .spin {
   border-width: 2px;
   animation-duration: 1.2s;
+}
+
+/* ===== SAFE UI COMPONENTS ===== */
+/* Friendly confirmation dialog — replaces scary browser confirm() */
+.safe-confirm {
+  max-width: 340px;
+  text-align: center;
+  padding: 28px 24px 20px;
+  border-radius: 20px;
+}
+.safe-confirm-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+.safe-confirm-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.safe-confirm-msg {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.safe-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.safe-confirm-actions .btn {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.safe-confirm-actions .btn.ghost {
+  background: var(--soft);
+  color: var(--text);
+  border: none;
+}
+.safe-confirm-actions .btn.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Toast with undo — appears at bottom of screen */
+.safe-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1f1f23;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  animation: toast-in 0.25s ease;
+  max-width: min(92vw, 380px);
+  font-size: 14px;
+}
+.safe-toast-icon { font-size: 18px; flex-shrink: 0; }
+.safe-toast-msg { flex: 1; min-width: 0; }
+.safe-toast-action {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.safe-toast-action:hover { background: var(--accent-dark); }
+@media (max-width: 640px) {
+  .safe-confirm {
+    max-width: calc(100vw - 40px);
+    padding: 24px 20px 16px;
+    border-radius: 18px;
+  }
+  .safe-confirm-icon { font-size: 42px; }
+  .safe-confirm-title { font-size: 16px; }
+  .safe-confirm-actions .btn { padding: 14px 16px; }
+  .safe-toast { bottom: 80px; }
 }
