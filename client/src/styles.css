@@ -310,7 +310,8 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   cursor: pointer;
 }
 .rail-link:hover { background: var(--hover); }
-.rail-link.active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.rail-link.active { background: rgba(30, 136, 229, 0.12); color: var(--accent); font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .rail-link.active { background: rgba(21, 101, 192, 0.15); } }
 .rail-create { color: var(--accent); }
 .rail-create:hover { background: var(--accent-soft); }
 .rail-avatar {
@@ -381,7 +382,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   color: var(--muted);
   border-radius: 20px;
 }
-.tab.active { color: var(--card); background: var(--text); }
+.tab.active { color: #fff; background: var(--accent); }
 
 /* ---------- post card ---------- */
 .post {
