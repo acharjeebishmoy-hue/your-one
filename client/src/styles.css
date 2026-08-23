@@ -1,27 +1,28 @@
 :root {
-  --bg: #f0f2f5;
-  --card: #ffffff;
-  --border: #dddfe2;
-  --text: #1c1e21;
-  --muted: #65676b;
-  --accent: #1a73e8;
-  --accent-dark: #1557b0;
+  /* IMO Light Mode */
+  --bg: #FFFFFF;
+  --card: #FFFFFF;
+  --border: #E8E8E8;
+  --text: #333333;
+  --muted: #999999;
+  --accent: #1E88E5;
+  --accent-dark: #1565C0;
   --danger: #dc2626;
-  --grad: linear-gradient(135deg, #1a73e8, #1557b0);
-  --hover: #f2f3f5;
-  --soft: #e4e6eb;
-  --soft2: #f0f2f5;
-  --field-bg: #ffffff;
+  --grad: linear-gradient(135deg, #1E88E5, #1565C0);
+  --hover: #F5F5F5;
+  --soft: #F0F0F0;
+  --soft2: #F8F8F8;
+  --field-bg: #FFFFFF;
   --danger-soft: #fff0f0;
   --danger-border: #ffd5d9;
   --ring-seen: #d4d4d4;
   --overlay: rgba(0, 0, 0, 0.55);
   --on-accent: #ffffff;
-  --accent-soft: #e7f0fe;
+  --accent-soft: #E3F2FD;
   --danger-soft2: #fff0f0;
-  --hairline: #f0f0f0;
+  --hairline: #F0F0F0;
   --radius: 10px;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   color-scheme: light dark;
 }
 
@@ -1468,27 +1469,28 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
 /* ---------- dark mode (follows the device setting, no toggle) ---------- */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #18191a;
-    --card: #242526;
-    --border: #3a3b3c;
-    --text: #e4e6eb;
-    --muted: #b0b3b8;
-    --accent: #4599ff;
-    --accent-dark: #3586e6;
+    /* IMO Dark Mode */
+    --bg: #1A1A1A;
+    --card: #2A2A2A;
+    --border: #333333;
+    --text: #FFFFFF;
+    --muted: #AAAAAA;
+    --accent: #1565C0;
+    --accent-dark: #0D47A1;
     --danger: #f87171;
-    --grad: linear-gradient(135deg, #4599ff, #1a73e8);
-    --hover: #3a3b3c;
-    --soft: #3a3b3c;
-    --soft2: #303132;
-    --field-bg: #3a3b3c;
+    --grad: linear-gradient(135deg, #1565C0, #0D47A1);
+    --hover: #333333;
+    --soft: #333333;
+    --soft2: #252525;
+    --field-bg: #333333;
     --danger-soft: #3a1d1d;
     --danger-border: #5c2b2b;
     --ring-seen: #3d4d43;
     --overlay: rgba(0, 0, 0, 0.7);
     --on-accent: #ffffff;
-    --accent-soft: #1a3a5c;
+    --accent-soft: #0D47A1;
     --danger-soft2: #3a1d1d;
-    --hairline: #3a3b3c;
+    --hairline: #333333;
   }
   .post-img { background: var(--soft); }
   .tab.active { color: var(--bg); }
