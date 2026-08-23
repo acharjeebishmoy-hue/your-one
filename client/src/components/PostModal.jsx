@@ -166,6 +166,7 @@ export function PostModal() {
               <button className="ph-del" title="More" onClick={() => setMenuOpen((o) => !o)}>⋯</button>
               {menuOpen && (
                 <div className="dropdown menu-drop" style={{ width: 170, right: 0, left: "auto" }}>
+                  <button onClick={() => { navigator.clipboard.writeText(location.origin + "/p/" + post.id); setShareMsg("Link copied! 🔗"); setTimeout(() => setShareMsg(""), 2500); setMenuOpen(false); }}>🔗 Copy link</button>
                   {isMine ? (
                     <button onClick={deletePost}>🗑 Delete post</button>
                   ) : (
