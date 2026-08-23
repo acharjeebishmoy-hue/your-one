@@ -1,9 +1,9 @@
 /* Your One service worker — network-first, cache fallback */
-const CACHE = "yourone-v1";
+const CACHE = "yourone-v2";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(["/", "/logo.png", "/manifest.webmanifest"]).catch(() => {}))
+    caches.open(CACHE).then((c) => c.addAll(["/", "/logo.svg", "/logo.png", "/manifest.webmanifest"]).catch(() => {}))
   );
   self.skipWaiting();
 });
@@ -28,8 +28,8 @@ self.addEventListener("push", (e) => {
   const title = data.title || "Your One";
   const options = {
     body: data.body || "",
-    icon: data.icon || "/logo.png",
-    badge: "/logo.png",
+    icon: data.icon || "/logo.svg",
+    badge: "/logo.svg",
     data: { url: data.url || "/" },
   };
   e.waitUntil(self.registration.showNotification(title, options));
