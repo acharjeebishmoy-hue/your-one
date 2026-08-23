@@ -54,7 +54,7 @@ export function DesktopRightPanel() {
 
       {active.length > 0 && (
         <div className="side-card">
-          <div className="side-card-title">🟢 Active now · {active.length}</div>
+          <div className="side-card-title">Active now — {active.length} {active.length === 1 ? 'person' : 'people'}</div>
           {active.slice(0, 8).map((u) => (
             <Link key={u.id} to={`/u/${encodeURIComponent(u.name)}`} className="side-person">
               <div style={{ position: "relative" }}>
