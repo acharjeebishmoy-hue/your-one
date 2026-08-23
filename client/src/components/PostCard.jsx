@@ -315,7 +315,7 @@ export function PostCard({ post, onDeleted }) {
           </div>
         )}
 
-        <div className="post-time">{timeAgo(post.createdAt)}</div>
+
       </div>
 
       <form className="comment-box" onSubmit={addComment}>
