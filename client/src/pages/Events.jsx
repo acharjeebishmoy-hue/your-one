@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
-import { formatDate, isOnline } from "../utils.js";
+import { formatEventDate, isOnline } from "../utils.js";
 import { Avatar } from "../components/Avatar.jsx";
 
 export function Events() {
@@ -64,7 +64,7 @@ export function Events() {
               </div>
               <div className="event-info">
                 <div className="ev-title">{e.title}</div>
-                <div className="ev-meta">📅 {formatDate(e.startsAt)}</div>
+                <div className="ev-meta">📅 {formatEventDate(e.startsAt)}</div>
                 {e.location && <div className="ev-meta">📍 {e.location}</div>}
                 {e.description && <div className="ev-desc">{e.description}</div>}
                 <div className="ev-host">
