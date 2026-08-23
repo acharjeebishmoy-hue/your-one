@@ -6,11 +6,11 @@
       <stop offset="100%" stop-color="#2B4CE8"/>
     </linearGradient>
     <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="white" stop-opacity="0.25"/>
+      <stop offset="0%" stop-color="white" stop-opacity="0.2"/>
       <stop offset="100%" stop-color="white" stop-opacity="0"/>
     </linearGradient>
     <filter id="glow">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feGaussianBlur stdDeviation="3" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -21,16 +21,17 @@
   <!-- Rounded square background -->
   <rect width="512" height="512" rx="108" ry="108" fill="url(#bg)"/>
   
-  <!-- Glass shine effect -->
-  <rect width="512" height="280" rx="108" ry="108" fill="url(#shine)"/>
+  <!-- Glass shine -->
+  <rect width="512" height="260" rx="108" ry="108" fill="url(#shine)"/>
   
-  <!-- Y letter - bold, modern -->
-  <path d="M100 110 L175 250 L100 400 L165 400 L210 310 L255 400 L320 400 L245 250 L320 110 L255 110 L210 200 L165 110 Z" 
+  <!-- Y letter - clear fork shape, not X -->
+  <!-- Left arm going up-left -->
+  <path d="M85 100 L195 260 L85 420 L155 420 L210 320 L210 420 L255 420 L255 320 L310 420 L380 420 L270 260 L380 100 L310 100 L255 195 L200 100 Z" 
         fill="white" filter="url(#glow)"/>
   
-  <!-- O letter - bold, modern with gap -->
-  <ellipse cx="395" cy="255" rx="70" ry="120" fill="none" stroke="white" stroke-width="38" filter="url(#glow)"/>
+  <!-- O letter - thick, bold -->
+  <circle cx="435" cy="260" r="80" fill="none" stroke="white" stroke-width="42" filter="url(#glow)"/>
   
-  <!-- Subtle dot accent -->
-  <circle cx="460" cy="130" r="12" fill="white" opacity="0.6"/>
+  <!-- Accent dot -->
+  <circle cx="485" cy="110" r="10" fill="white" opacity="0.5"/>
 </svg>
