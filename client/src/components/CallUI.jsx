@@ -15,10 +15,16 @@ export function CallUI({
 }) {
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+    }
+    // FIX: hidden audio element plays sound for audio-only calls
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(() => {});
     }
   }, [remoteStream]);
 
@@ -37,6 +43,8 @@ export function CallUI({
 
   return (
     <div className={`call-overlay ${isVideo && !isRinging ? "call-video" : ""}`}>
+      {/* Hidden audio element for audio-only calls */}
+      <audio ref={remoteAudioRef} autoPlay playsInline style={{display:'none'}} />
       {isVideo && !isRinging ? (
         /* Video call layout */
         <div className="call-video-container">
