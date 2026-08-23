@@ -1168,7 +1168,7 @@ app.post("/api/calls/start", wrap(async (req, res) => {
   if (!callee) return res.status(404).json({ error: "User not found" });
   // End any existing active calls for either party
   await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE status IN ('ringing', 'active') AND (caller_id = ? OR callee_id = ? OR caller_id = ? OR callee_id = ?)").run(user.id, user.id, calleeId, calleeId);
-  const result = await db.prepare("INSERT INTO calls (caller_id, callee_id, status, offer) VALUES (?, ?, 'ringing', ?)").run(user.id, calleeId, JSON.stringify(offer));
+  const result = await db.prepare("INSERT INTO calls (caller_id, callee_id, status, offer) VALUES (?, ?, 'ringing', ?) RETURNING id").run(user.id, calleeId, JSON.stringify(offer));
   // Notify callee instantly via SSE
   broadcastToUser(calleeId, {
     type: "incoming", callId: result.lastInsertRowid, callerId: user.id,
