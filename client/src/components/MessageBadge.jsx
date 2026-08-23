@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { POLL_MS } from "../perf.js";
 import { useAuth } from "../auth.jsx";
 
 // Live unread message count (polled so new chats pop in on their own)
@@ -15,7 +16,7 @@ export function useUnreadMessages() {
         .then((d) => setCount(d.count))
         .catch(() => {});
     load();
-    const t = setInterval(load, 10000);
+    const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [user]);
 
