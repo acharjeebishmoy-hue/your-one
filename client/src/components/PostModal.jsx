@@ -260,7 +260,7 @@ export function PostModal() {
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <button type="submit" disabled={!text.trim() || busy}>Send</button>
+            <button type="submit" disabled={!text.trim() || busy} className="comment-send"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
           </form>
         </div>
       </div>
