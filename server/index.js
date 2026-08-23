@@ -1141,7 +1141,7 @@ app.post("/api/calls/start", wrap(async (req, res) => {
   const callee = await db.prepare("SELECT id, name FROM users WHERE id = ?").get(calleeId);
   if (!callee) return res.status(404).json({ error: "User not found" });
   // End any existing active calls for either party
-  await db.prepare("UPDATE calls SET status = 'ended', ended_at = datetime('now') WHERE status IN ('ringing', 'active') AND (caller_id = ? OR callee_id = ? OR caller_id = ? OR callee_id = ?)").run(user.id, user.id, calleeId, calleeId);
+  await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE status IN ('ringing', 'active') AND (caller_id = ? OR callee_id = ? OR caller_id = ? OR callee_id = ?)").run(user.id, user.id, calleeId, calleeId);
   const result = await db.prepare("INSERT INTO calls (caller_id, callee_id, status, offer) VALUES (?, ?, 'ringing', ?)").run(user.id, calleeId, JSON.stringify(offer));
   res.json({ ok: true, callId: result.lastInsertRowid });
 }));
@@ -1153,7 +1153,7 @@ app.post("/api/calls/:id/answer", wrap(async (req, res) => {
   const call = await db.prepare("SELECT * FROM calls WHERE id = ?").get(req.params.id);
   if (!call) return res.status(404).json({ error: "Call not found" });
   if (call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
-  await db.prepare("UPDATE calls SET status = 'active', answer = ?, started_at = datetime('now') WHERE id = ?").run(JSON.stringify(answer), req.params.id);
+  await db.prepare("UPDATE calls SET status = 'active', answer = ?, started_at = NOW() WHERE id = ?").run(JSON.stringify(answer), req.params.id);
   res.json({ ok: true });
 }));
 
@@ -1176,7 +1176,7 @@ app.post("/api/calls/:id/end", wrap(async (req, res) => {
   const call = await db.prepare("SELECT * FROM calls WHERE id = ?").get(req.params.id);
   if (!call) return res.status(404).json({ error: "Call not found" });
   if (call.caller_id !== user.id && call.callee_id !== user.id) return res.status(403).json({ error: "Not your call" });
-  await db.prepare("UPDATE calls SET status = 'ended', ended_at = datetime('now') WHERE id = ?").run(req.params.id);
+  await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE id = ?").run(req.params.id);
   res.json({ ok: true });
 }));
 
