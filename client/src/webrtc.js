@@ -289,11 +289,6 @@ export function useCall(userId) {
           } else if (c.id === myId && c.status === "active" && cur?.status === "ringing" && !c.isCaller) {
             log("POLL: we are active");
             setActiveCall(p => p ? { ...p, status: "active" } : p);
-
-          // Case 4: Call ended
-          } else if (!c.call && myId) {
-            log("POLL: call ended");
-            doCleanup();
           }
 
           // Case 5: Late ICE candidates (call already active, but candidates arrived after answer)
