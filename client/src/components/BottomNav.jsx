@@ -54,7 +54,7 @@ export function BottomNav({ onCompose }) {
           <MessageIcon />
           <MessagesBadge />
         </span>
-        <span className="bn-label">Chat</span>
+        <span className="bn-label">Messages</span>
       </NavLink>
       <button className="bn-item bn-create" onClick={onCompose} aria-label="Create post">
         <PlusIcon />
