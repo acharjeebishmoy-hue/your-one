@@ -6,6 +6,7 @@ import { StoriesBar } from "../components/StoriesBar.jsx";
 import { StoryViewer } from "../components/StoryViewer.jsx";
 import { StoryComposer } from "../components/StoryComposer.jsx";
 import { Avatar } from "../components/Avatar.jsx";
+import { IconUsers, IconGlobe, IconEmptyFeed } from "../components/Icons.jsx";
 import { useAuth } from "../auth.jsx";
 
 export function Feed({ view, setView, version = 0, onCompose }) {
@@ -72,10 +73,10 @@ export function Feed({ view, setView, version = 0, onCompose }) {
     <div className="page">
       <div className="tabs">
         <button className={`tab ${view === "following" ? "active" : ""}`} onClick={() => setView("following")}>
-          <span className="tab-icon">👥</span> Following
+          <span className="tab-icon"><IconUsers size={16} /></span> Following
         </button>
         <button className={`tab ${view === "everyone" ? "active" : ""}`} onClick={() => setView("everyone")}>
-          <span className="tab-icon">🌍</span> Everyone
+          <span className="tab-icon"><IconGlobe size={16} /></span> Everyone
         </button>
       </div>
 
@@ -93,7 +94,7 @@ export function Feed({ view, setView, version = 0, onCompose }) {
 
         {birthdays.length > 0 && (
           <div className="birthday-card">
-            <span className="bc-icon">🎂</span>
+            <span className="bc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
             <span>Today's birthdays: </span>
             {birthdays.map((b, i) => (
               <span key={b.id}>
@@ -104,7 +105,7 @@ export function Feed({ view, setView, version = 0, onCompose }) {
                 </Link>
               </span>
             ))}
-            <span className="bc-hint">— say happy birthday! 🎉</span>
+            <span className="bc-hint">— say happy birthday!</span>
           </div>
         )}
 
@@ -112,9 +113,9 @@ export function Feed({ view, setView, version = 0, onCompose }) {
           <div className="spin" />
         ) : posts.length === 0 ? (
           <div className="empty">
-            <div className="big">🌱</div>
+            <IconEmptyFeed size={48} />
             <div style={{fontSize: 15, fontWeight: 600}}>Empty feed</div>
-            <div style={{fontSize: 13, marginTop: 4}}>Tap 👤 to find friends, or ➕ to post</div>
+            <div style={{fontSize: 13, marginTop: 4}}>Tap search to find friends, or + to post</div>
           </div>
         ) : (
           posts.map((p) => <PostCard key={p.id} post={p} onDeleted={removePost} />)
