@@ -12,6 +12,8 @@ import { MessageToast } from "./components/MessageToast.jsx";
 import { PushBanner } from "./components/PushBanner.jsx";
 import { PostModal } from "./components/PostModal.jsx";
 import { NameModal } from "./components/NameModal.jsx";
+import { CallUI } from "./components/CallUI.jsx";
+import { useCall } from "./webrtc.js";
 import { Feed } from "./pages/Feed.jsx";
 import { Explore } from "./pages/Explore.jsx";
 import { SearchPage } from "./pages/SearchPage.jsx";
@@ -26,6 +28,7 @@ export default function App() {
   const [feedView, setFeedView] = useState("everyone");
   const [nameOpen, setNameOpen] = useState(false);
   const [feedVersion, setFeedVersion] = useState(0);
+  const call = useCall(user?.id);
 
   useEffect(() => {
     const open = () => setNameOpen(true);
@@ -59,7 +62,7 @@ export default function App() {
             <Route path="/" element={<Feed view={feedView} setView={setFeedView} version={feedVersion} onCompose={() => setComposerOpen(true)} />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/messages" element={<MessagesPage call={call} />} />
             <Route path="/events" element={<Events />} />
             <Route path="/hashtag/:tag" element={<HashtagPage />} />
             <Route path="/u/:name" element={<Profile />} />
@@ -71,6 +74,26 @@ export default function App() {
       </div>
 
       <MessageToast />
+      <CallUI
+        call={call.activeCall}
+        localStream={call.localStream}
+        remoteStream={call.remoteStream}
+        callDuration={call.callDuration}
+        onAnswer={() => {
+          if (call.activeCall?.offer) {
+            call.answerCall({
+              id: call.activeCall.id,
+              callerId: call.activeCall.otherUserId,
+              offer: call.activeCall.offer,
+              candidates: call.activeCall.candidates || [],
+            });
+          }
+        }}
+        onEnd={call.endCall}
+        onUpgradeVideo={call.upgradeToVideo}
+        onToggleMute={call.toggleMute}
+        onToggleCamera={call.toggleCamera}
+      />
       {composerOpen && (
         <Composer
           onClose={() => setComposerOpen(false)}
