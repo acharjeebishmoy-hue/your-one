@@ -33,9 +33,10 @@ export function StoriesBar({ onOpen, onOpenComposer }) {
       <div className="stories-row">
         {user?.name && (
           <button className="story-item story-add" onClick={onOpenComposer}>
-            <span className="story-ring add">
-              <span className="story-add-icon">＋</span>
-            </span>
+            <div className="story-add-circle">
+              <img src={user.avatar} alt="" className="story-add-avatar" />
+              <span className="story-add-plus">＋</span>
+            </div>
             <span className="story-name">Your story</span>
           </button>
         )}
