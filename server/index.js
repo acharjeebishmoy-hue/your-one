@@ -1227,13 +1227,6 @@ app.post("/api/calls/:id/end", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// Auto-expire stale ringing calls (>45s) — prevents zombie calls from blocking new ones
-setInterval(async () => {
-  try {
-    await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE status = 'ringing' AND created_at < NOW() - INTERVAL '45 seconds'").run();
-  } catch {}
-}, 30000);
-
 // ICE restart — caller sends new offer after connection failure during an ACTIVE call
 // Keeps the call active, just updates offer + clears candidates so callee can setRemoteDescription again
 app.post("/api/calls/:id/restart", wrap(async (req, res) => {
