@@ -48,6 +48,7 @@ export function useCall(userId) {
   const pollModeRef = useRef("idle"); // idle | setup | active
   const isCallerRef = useRef(false);
   const nullPollCountRef = useRef(0); // debounce: only cleanup after N consecutive null polls
+  const lastOfferRef = useRef(null); // track offer string for ICE restart detection
 
   // Keep refs in sync
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
@@ -405,6 +406,30 @@ export function useCall(userId) {
               }
             }
             if (added > 0) log("added", added, "late ICE candidates");
+          }
+
+          // Case 6: ICE restart — call is active but offer changed (answer was cleared by server)
+          // This happens when the caller's ICE failed and they sent a new offer with iceRestart
+          if (c.id === myId && c.status === "active" && c.offer && !c.answer && pcRef.current && !c.isCaller) {
+            const offerStr = JSON.stringify(c.offer);
+            if (offerStr !== lastOfferRef.current) {
+              log("POLL: ICE restart detected — new offer from caller");
+              lastOfferRef.current = offerStr;
+              processedCandidatesRef.current = new Set();
+              try {
+                await pcRef.current.setRemoteDescription(new RTCSessionDescription(c.offer));
+                // Add any early candidates
+                if (c.candidates?.length) {
+                  for (const cand of c.candidates) {
+                    try { await pcRef.current.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
+                  }
+                }
+                const answer = await pcRef.current.createAnswer();
+                await pcRef.current.setLocalDescription(answer);
+                await api.post(`/api/calls/${c.id}/answer`, { answer: pcRef.current.localDescription.toJSON() });
+                log("ICE restart: new answer sent");
+              } catch (e) { log("ICE restart answer failed:", e); }
+            }
           }
         } else if (!d.call && callIdRef.current) {
           nullPollCountRef.current++;
