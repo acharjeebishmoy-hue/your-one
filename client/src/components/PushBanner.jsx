@@ -45,7 +45,7 @@ export function PushBanner() {
     );
   }
   if (state === "loading" || state === "unsupported" || state === "on" || state === "denied") return null;
-  if (typeof localStorage !== "undefined" && localStorage.getItem(DISMISS_KEY)) return null;
+  // Banner stays until farmer taps "Turn on" — can't be dismissed
 
   const onIphone = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone;
 
@@ -72,13 +72,7 @@ export function PushBanner() {
       <button className="pb-btn" onClick={turnOn} disabled={busy}>
         {busy ? "Setting up…" : "Turn on"}
       </button>
-      <button
-        className="pb-x"
-        aria-label="Not now"
-        onClick={() => localStorage.setItem(DISMISS_KEY, "1")}
-      >
-        ✕
-      </button>
+
       {onIphone && <div className="pb-hint">On iPhone: add to Home Screen first, then turn on.</div>}
     </div>
   );
