@@ -2559,3 +2559,84 @@ html.low-end .spin {
   .safe-confirm-actions .btn { padding: 14px 16px; }
   .safe-toast { bottom: 80px; }
 }
+
+/* ---------- push setup full-screen overlay ---------- */
+.ps-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 20px;
+  animation: fade 0.2s ease;
+}
+.ps-card {
+  background: var(--card);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 380px;
+  padding: 40px 28px 28px;
+  text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  animation: rise 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.ps-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ps-icon-main { background: linear-gradient(135deg, #1E88E5, #1565C0); }
+.ps-icon-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.ps-icon-warn { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.ps-title { font-size: 22px; font-weight: 700; margin: 0; color: var(--text); }
+.ps-detail { font-size: 14px; color: var(--muted); line-height: 1.5; margin: 0; max-width: 300px; }
+.ps-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 28px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.12s, transform 0.12s;
+}
+.ps-btn:hover { background: var(--accent-dark); }
+.ps-btn:disabled { opacity: 0.6; cursor: default; }
+.ps-btn-big { padding: 16px 28px; font-size: 17px; border-radius: 14px; }
+.ps-skip {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.ps-skip:hover { color: var(--text); }
+.ps-help {
+  text-align: left;
+  width: 100%;
+  background: var(--soft);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+}
+.ps-help ol { margin: 8px 0 0; padding-left: 18px; }
+.ps-help li { margin-bottom: 4px; }
+.ps-progress { font-size: 13px; color: var(--accent); font-weight: 600; }
+.ps-error { font-size: 13px; color: var(--danger); background: var(--danger-soft); padding: 8px 12px; border-radius: 8px; width: 100%; }
+.ps-debug { width: 100%; margin-top: 4px; }
+.ps-debug summary { font-size: 11px; color: var(--muted); cursor: pointer; }
+.ps-debug pre { font-size: 10px; color: var(--muted); text-align: left; margin: 4px 0 0; white-space: pre-wrap; word-break: break-all; }
