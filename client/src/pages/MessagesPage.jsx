@@ -348,7 +348,8 @@ export function MessagesPage({ call }) {
                       try {
                         await call?.startCall(active.id);
                       } catch (e) {
-                        alert("Could not start call: " + (e.message || "Check microphone permission"));
+                        // Silent fail — no scary popup for the farmer
+                        console.log("Call failed:", e.message);
                       }
                     }}
                     title="Audio call"
