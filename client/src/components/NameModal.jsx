@@ -15,11 +15,13 @@ export function NameModal({ onClose }) {
     if (busy) return;
     setBusy(true);
     setError("");
+    // CRITICAL: request permission BEFORE any await — the browser user gesture
+    // context dies after the first await. If we wait, Chrome silently blocks.
+    Notification.requestPermission().catch(() => {});
     try {
       await pickName(name);
       onClose();
-      // Auto-enable push notifications right after name pick (user gesture = browser allows it)
-      // This makes notifications work like WhatsApp — no extra steps for the farmer
+      // Subscribe silently after name is saved (permission already asked above)
       enablePush().catch(() => {});
     } catch (err) {
       setError(err.message);
