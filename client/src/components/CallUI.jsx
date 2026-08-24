@@ -9,25 +9,27 @@ export function CallUI({
   localStream,
   remoteStream,
   callDuration,
+  connectionState,
   onAnswer,
   onEnd,
   onUpgradeVideo,
   onToggleMute,
   onToggleCamera,
+  onRetry,
 }) {
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
 
-  // Attach remoteStream to audio — retry aggressively
+  // Attach remoteStream to audio — retry aggressively until it plays
   useEffect(() => {
     if (!remoteStream) { log("no remoteStream yet"); return; }
     log("remoteStream received, tracks:", remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
 
     function tryAttach() {
       const el = remoteAudioRef.current;
-      if (!el) { log("audio ref not ready"); return; }
+      if (!el) return;
       el.srcObject = remoteStream;
       el.play().then(() => {
         log("audio PLAYING!");
@@ -39,7 +41,6 @@ export function CallUI({
     }
 
     tryAttach();
-    // Retry every 300ms — browsers block autoplay until user taps
     const t = setInterval(tryAttach, 300);
     return () => clearInterval(t);
   }, [remoteStream]);
@@ -55,12 +56,11 @@ export function CallUI({
     }
   }, [remoteStream, localStream]);
 
-  // Log call state changes
+  // Log state changes
   useEffect(() => {
-    if (call) log("call state:", call.status, "isCaller:", call.isCaller, "video:", call.video);
-  }, [call]);
+    if (call) log("call state:", call.status, "isCaller:", call.isCaller, "connectionState:", connectionState);
+  }, [call, connectionState]);
 
-  // Unmute handler — user taps this to unlock audio
   function handleUnmute() {
     const el = remoteAudioRef.current;
     if (el) {
@@ -73,16 +73,35 @@ export function CallUI({
   if (!call) return null;
 
   const isVideo = call.video && (remoteStream || localStream);
+  const isRinging = call.status === "ringing";
+  const isFailed = connectionState === "failed";
+  const isConnecting = connectionState === "connecting";
+
+  // Build the status text based on connection state
+  let statusText = "";
+  if (isFailed) {
+    statusText = "Call failed — no connection";
+  } else if (isRinging && call.isCaller) {
+    statusText = "Ringing...";
+  } else if (isRinging && !call.isCaller) {
+    statusText = "Incoming call";
+  } else if (isConnecting) {
+    statusText = "Connecting...";
+  } else if (connectionState === "connected" && callDuration > 0) {
+    statusText = formatCallDuration(callDuration);
+  } else {
+    statusText = call.otherUser?.name || "Call";
+  }
+
   const otherName = call.otherUser?.name || (call.isCaller ? "Calling..." : "Incoming call");
   const otherAvatar = call.otherUser?.avatar;
-  const isRinging = call.status === "ringing";
 
   return (
     <>
-      {/* HIDDEN AUDIO — always renders, always plays remote stream */}
+      {/* Hidden audio — always renders, always plays remote stream */}
       <audio ref={remoteAudioRef} autoPlay playsInline muted={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0.01, pointerEvents: "none" }} />
 
-      {/* Tap-to-unmute banner — shown when autoplay blocks audio */}
+      {/* Tap-to-unmute banner */}
       {audioBlocked && !isRinging && (
         <div
           onClick={handleUnmute}
@@ -103,7 +122,7 @@ export function CallUI({
             <video ref={localVideoRef} autoPlay playsInline muted className="call-local-video" />
             <div className="call-video-info">
               <span className="call-video-name">{otherName}</span>
-              {callDuration > 0 && <span className="call-video-time">{formatCallDuration(callDuration)}</span>}
+              <span className="call-video-time">{statusText}</span>
             </div>
           </div>
         ) : (
@@ -112,9 +131,7 @@ export function CallUI({
               <Avatar src={otherAvatar} username={otherName} size={120} />
             </div>
             <div className="call-name">{otherName}</div>
-            <div className="call-status">
-              {isRinging ? (call.isCaller ? "Ringing..." : "Incoming call") : formatCallDuration(callDuration)}
-            </div>
+            <div className="call-status">{statusText}</div>
           </div>
         )}
 
@@ -144,8 +161,26 @@ export function CallUI({
             </button>
           )}
 
+          {/* Failed: retry + end */}
+          {isFailed && (
+            <button className="call-btn call-answer" onClick={() => { handleUnmute(); if (onRetry) onRetry(); }} title="Retry">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="none">
+                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+              </svg>
+            </button>
+          )}
+
+          {/* Failed: end */}
+          {isFailed && (
+            <button className="call-btn call-decline" onClick={onEnd} title="End">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="none">
+                <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.27 11.27 0 0 0-2.67-1.85.996.996 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" />
+              </svg>
+            </button>
+          )}
+
           {/* Active call: mute, camera, end */}
-          {!isRinging && (
+          {!isRinging && !isFailed && (
             <>
               <button className="call-btn call-mute" onClick={onToggleMute} title="Mute">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
