@@ -37,15 +37,20 @@ self.addEventListener("push", (e) => {
     requireInteraction: isCall, // call notifications STAY until farmer taps them
     tag: isCall ? "call-" + Date.now() : (data.tag || "yourone"), // calls never group — each one is unique
     renotify: isCall, // vibrate again for each new call
-    data: { url: data.url || "/messages" },
+    data: { url: data.url || "/messages", type: data.type || "default", callId: data.callId || null, callerName: data.callerName || null },
   };
   e.waitUntil(self.registration.showNotification(title, options));
 });
 
-/* Tap a notification → open the right page (post, profile, or messages) */
+/* Tap a notification → open the right page */
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || "/";
+  let url = (e.notification.data && e.notification.data.url) || "/";
+  // For calls: append callId so the app opens DIRECTLY to the incoming call screen
+  const d = e.notification.data || {};
+  if (d.type === "call" && d.callId) {
+    url = "/messages?call=" + d.callId + "&from=" + encodeURIComponent(d.callerName || "");
+  }
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const client of list) {
