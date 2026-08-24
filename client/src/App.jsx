@@ -79,6 +79,7 @@ export default function App() {
         localStream={call.localStream}
         remoteStream={call.remoteStream}
         callDuration={call.callDuration}
+        connectionState={call.connectionState}
         onAnswer={(callData) => {
           if (callData?.offer) {
             call.answerCall({
@@ -95,6 +96,11 @@ export default function App() {
         onUpgradeVideo={call.upgradeToVideo}
         onToggleMute={call.toggleMute}
         onToggleCamera={call.toggleCamera}
+        onRetry={() => {
+          if (call.activeCall) {
+            call.endCall();
+          }
+        }}
       />
       {composerOpen && (
         <Composer
