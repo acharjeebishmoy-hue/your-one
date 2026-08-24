@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { POLL_MS, SKIP_PRESENCE } from "./perf.js";
+import { enablePush, getPushState } from "./push.js";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api.js";
 import { useAuth } from "./auth.jsx";
@@ -43,6 +44,15 @@ export default function App() {
     ping();
     const t = setInterval(ping, POLL_MS * 3);
     return () => clearInterval(t);
+  }, [user?.name]);
+
+  // Auto-subscribe push if permission already granted (silent, no user gesture needed)
+  // If permission not yet granted, PushBanner handles the ask (needs user tap)
+  useEffect(() => {
+    if (!user?.name) return;
+    getPushState().then(s => {
+      if (s === "off") enablePush().catch(() => {});
+    });
   }, [user?.name]);
 
   useEffect(() => {
