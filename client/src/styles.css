@@ -1996,6 +1996,10 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   }
   .bn-item.active .bn-avatar { border-color: var(--accent); }
   .bn-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .bn-bell-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 52px; }
+  .bn-bell-wrap .icon-btn { padding: 12px 0; color: var(--muted); }
+  .bn-bell-wrap .icon-btn .badge { top: 4px; right: 2px; }
+  .bn-bell-wrap .dropdown { position: fixed; left: 0; right: 0; top: auto; bottom: 56px; max-height: 60vh; overflow-y: auto; border-radius: 14px 14px 0 0; }
 
   /* messages: one pane at a time on phones — open chat goes FULL SCREEN */
   .msg-panes { display: block; height: auto; min-height: 0; }
@@ -2166,6 +2170,8 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   animation: toast-in 0.25s ease;
 }
 .push-banner.pb-done { background: var(--accent-soft); }
+.push-banner.pb-denied { border-color: var(--danger); background: #fff0f0; }
+.dark .push-banner.pb-denied { background: #2a1520; }
 .pb-emoji { font-size: 18px; flex: none; }
 .pb-text { flex: 1; font-size: 13px; line-height: 1.35; }
 .pb-btn {
@@ -2191,7 +2197,9 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
 }
 .pb-hint { font-size: 11px; color: var(--muted); flex: none; }
 @media (max-width: 640px) {
-  .push-banner { margin: 8px 10px 0; }
+  .push-banner { margin: 8px 10px 0; padding: 12px 14px; gap: 12px; }
+  .pb-text { font-size: 14px; line-height: 1.4; }
+  .pb-btn { padding: 10px 20px; font-size: 15px; border-radius: 10px; min-width: 80px; }
   .pb-hint { display: none; }
 }
 
