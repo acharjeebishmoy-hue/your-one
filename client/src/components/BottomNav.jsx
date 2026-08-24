@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { MessagesBadge } from "./MessageBadge.jsx";
+import { NotificationsBell } from "./NotificationsBell.jsx";
 
 // Universal icons — no English needed
 function HomeIcon({ active }) {
@@ -54,6 +55,9 @@ export function BottomNav({ onCompose }) {
           <MessagesBadge />
         </span>
       </NavLink>
+      <div className="bn-item bn-bell-wrap">
+        <NotificationsBell />
+      </div>
       <button className="bn-item bn-create" onClick={onCompose} aria-label="Create post">
         <PlusIcon />
       </button>
