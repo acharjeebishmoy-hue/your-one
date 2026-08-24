@@ -23,7 +23,7 @@ const POLL_ACTIVE = 3000;   // 3s during active call (just for keepalive)
 
 const MAX_RING_TIME = 40000; // 40s max ringing before auto-end
 const ICE_RESTART_DELAY = 2000; // wait 2s after ICE failure before retry
-const MAX_RETRIES = 2;       // auto-retry ICE up to 2 times
+const MAX_RETRIES = 4;       // auto-retry ICE up to 4 times (handles both failed + disconnected)
 
 function log(...args) { console.log("[CALL]", ...args); }
 
@@ -161,8 +161,22 @@ export function useCall(userId) {
       }
 
       if (state === "disconnected") {
-        log("ICE disconnected — may reconnect");
-        // Don't immediately end — ICE might recover
+        log("ICE disconnected — waiting for recovery...");
+        // Don't end immediately — network might recover (farmer walking back to WiFi)
+        // Start a timer: if still disconnected after 10s, try ICE restart
+        setTimeout(() => {
+          if (pcRef.current && pcRef.current.iceConnectionState === "disconnected") {
+            log("ICE still disconnected after 10s — attempting ICE restart");
+            if (retryCountRef.current < MAX_RETRIES) {
+              retryCountRef.current++;
+              setConnectionState("connecting");
+              restartICE();
+            } else {
+              log("ICE disconnected too long, ending call");
+              setConnectionState("failed");
+            }
+          }
+        }, 10000);
       }
     };
 
