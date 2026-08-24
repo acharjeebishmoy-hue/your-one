@@ -1176,12 +1176,16 @@ app.post("/api/calls/start", wrap(async (req, res) => {
     callerName: user.name, callerAvatar: user.avatar,
     offer, candidates: [],
   });
-  // Real push notification — works even when app is closed. type=call triggers loud vibration.
+  // Real push notification — works even when app is closed.
+  // type=call triggers loud vibration + persistent notification on the farmer's phone.
+  const callIdVal = result.lastInsertRowid;
   sendPushToUser(calleeId, {
     title: user.name,
     body: "Incoming call...",
-    url: "/messages",
+    url: "/messages?call=" + callIdVal + "&from=" + encodeURIComponent(user.name),
     type: "call",
+    callId: callIdVal,
+    callerName: user.name,
   });
   res.json({ ok: true, callId: result.lastInsertRowid });
 }));
