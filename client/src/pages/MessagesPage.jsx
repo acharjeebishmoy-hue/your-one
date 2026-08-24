@@ -86,6 +86,12 @@ export function MessagesPage({ call }) {
     }
   }, [toId]);
 
+  // When opened from a call notification: ?call=<id>&from=<name>
+  // The useCall hook polling will detect the incoming call and show the ringing screen.
+  // No extra code needed — the call prop's polling handles everything.
+  const callParam = params.get("call");
+  const fromParam = params.get("from");
+
   // Conversation list — refresh every 10s so new chats pop in
   useEffect(() => {
     if (!user?.name) return;
