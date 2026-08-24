@@ -26,14 +26,18 @@ self.addEventListener("push", (e) => {
     /* bad payload — ignore */
   }
   const title = data.title || "Your One";
+  const isCall = data.type === "call";
   const options = {
     body: data.body || "",
     icon: data.icon || "/logo.svg",
     badge: "/logo.svg",
-    vibrate: [200, 100, 200], // buzz pattern — works even when screen is off
-    requireInteraction: false, // auto-dismiss on Android (like WhatsApp)
-    tag: data.tag || "yourone", // group notifications together (not a flood)
-    data: { url: data.url || "/" },
+    // Call notifications: long vibration, stay on screen until tapped, loud
+    // Regular notifications: short buzz, auto-dismiss
+    vibrate: isCall ? [300, 100, 300, 100, 300] : [200, 100, 200],
+    requireInteraction: isCall, // call notifications STAY until farmer taps them
+    tag: isCall ? "call-" + Date.now() : (data.tag || "yourone"), // calls never group — each one is unique
+    renotify: isCall, // vibrate again for each new call
+    data: { url: data.url || "/messages" },
   };
   e.waitUntil(self.registration.showNotification(title, options));
 });
