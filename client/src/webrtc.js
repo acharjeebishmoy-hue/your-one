@@ -41,6 +41,7 @@ export function useCall(userId) {
   const peerRef = useRef(null); // the other user's ID we're calling/being called by
   const pollModeRef = useRef("idle"); // idle | setup | active
   const isCallerRef = useRef(false);
+  const nullPollCountRef = useRef(0); // debounce: only cleanup after N consecutive null polls
 
   // Keep refs in sync
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
@@ -64,6 +65,7 @@ export function useCall(userId) {
     processedCandidatesRef.current = new Set();
     retryCountRef.current = 0;
     pollModeRef.current = "idle";
+    nullPollCountRef.current = 0;
   }
 
   useEffect(() => () => doCleanup(), []);
@@ -320,6 +322,7 @@ export function useCall(userId) {
       try {
         const d = await api.get("/api/calls/poll");
         if (d.call) {
+          nullPollCountRef.current = 0; // reset null counter
           const c = d.call;
           const cur = activeCallRef.current;
           const myId = callIdRef.current;
@@ -398,8 +401,13 @@ export function useCall(userId) {
             if (added > 0) log("added", added, "late ICE candidates");
           }
         } else if (!d.call && callIdRef.current) {
-          log("POLL: call ended (null)");
-          doCleanup();
+          nullPollCountRef.current++;
+          if (nullPollCountRef.current >= 3) {
+            log("POLL: call ended (3 consecutive nulls)");
+            doCleanup();
+          } else {
+            log("POLL: null (" + nullPollCountRef.current + "/3 — waiting)");
+          }
         }
       } catch (e) { log("poll error:", e.message); }
     }
