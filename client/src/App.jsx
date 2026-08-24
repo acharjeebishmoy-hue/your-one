@@ -11,6 +11,7 @@ import { DesktopRightPanel } from "./components/DesktopRightPanel.jsx";
 import { Composer } from "./components/Composer.jsx";
 import { MessageToast } from "./components/MessageToast.jsx";
 import { PushBanner } from "./components/PushBanner.jsx";
+import { PushSetup } from "./components/PushSetup.jsx";
 import { PostModal } from "./components/PostModal.jsx";
 import { NameModal } from "./components/NameModal.jsx";
 import { CallUI } from "./components/CallUI.jsx";
@@ -30,6 +31,7 @@ export default function App() {
   const [nameOpen, setNameOpen] = useState(false);
   const [feedVersion, setFeedVersion] = useState(0);
   const call = useCall(user?.id);
+  const [pushSetupOpen, setPushSetupOpen] = useState(false);
 
   useEffect(() => {
     const open = () => setNameOpen(true);
@@ -46,34 +48,17 @@ export default function App() {
     return () => clearInterval(t);
   }, [user?.name]);
 
-  // Nuclear push: auto-subscribe if permission already granted, OR request on first tap
+  // Push notifications: auto-subscribe if already granted, show setup modal if not
   useEffect(() => {
     if (!user?.name) return;
-    // 1) If permission already granted but no subscription → silently subscribe
+    // If permission already granted but no subscription → silently subscribe
     getPushState().then(s => {
       if (s === "off") enablePush().catch(() => {});
-    });
-    // 2) On the FIRST tap anywhere in the app → request notification permission.
-    //    This is a user gesture, so the browser WILL show the permission prompt.
-    //    After allowing, we auto-subscribe.
-    function onFirstTap() {
-      document.removeEventListener("click", onFirstTap, true);
-      document.removeEventListener("touchstart", onFirstTap, true);
-      if (Notification.permission === "default") {
-        enablePush().catch(() => {});
-      } else if (Notification.permission === "granted") {
-        // Already granted but maybe no subscription
-        getPushState().then(s => {
-          if (s === "off") enablePush().catch(() => {});
-        });
+      if (s === "default") {
+        // Not yet decided — show the setup modal on mobile (phone-width)
+        if (window.innerWidth <= 640) setPushSetupOpen(true);
       }
-    }
-    document.addEventListener("click", onFirstTap, { once: true, capture: true });
-    document.addEventListener("touchstart", onFirstTap, { once: true, capture: true });
-    return () => {
-      document.removeEventListener("click", onFirstTap, true);
-      document.removeEventListener("touchstart", onFirstTap, true);
-    };
+    });
   }, [user?.name]);
 
   useEffect(() => {
@@ -140,6 +125,7 @@ export default function App() {
         />
       )}
       {nameOpen && <NameModal onClose={() => setNameOpen(false)} />}
+      {pushSetupOpen && <PushSetup onComplete={() => setPushSetupOpen(false)} />}
       <BottomNav onCompose={() => setComposerOpen(true)} />
     </>
   );
