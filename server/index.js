@@ -1309,4 +1309,16 @@ await ensureBucket();
 app.listen(PORT, () => {
   console.log(`🌐 Social app server running at http://localhost:${PORT}`);
   console.log(isSupabase ? "☁️  Connected to Supabase (Postgres)" : "💾 Using local SQLite — set DATABASE_URL in .env to use Supabase");
+  console.log("📞 Call auto-expire: 45s, ICE restart endpoint ready");
 });
+
+// Self-keepalive: ping our own /api/posts every 10 minutes so Render free tier never sleeps
+// This fixes the #1 cause of "first call after idle fails" — server cold start
+setInterval(async () => {
+  try {
+    await fetch(`http://localhost:${PORT}/api/posts`, {
+      headers: { "x-device-id": "keepalive" },
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {}
+}, 10 * 60 * 1000);
