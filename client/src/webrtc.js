@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "./api.js";
 
 const ICE_SERVERS = [
@@ -7,14 +7,17 @@ const ICE_SERVERS = [
   { urls: "stun:stun2.l.google.com:19302" },
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
-  { urls: "stun:stun.ekiga.net" },
-  { urls: "stun:stun.ideasip.com" },
-  { urls: "stun:stun.schlund.de" },
-  { urls: "stun:stun.voiparound.com" },
-  { urls: "stun:stun.voipbuster.com" },
-  { urls: "stun:stun.voipstunt.com" },
   { urls: "stun:stun.services.mozilla.com" },
 ];
+
+// Adaptive polling intervals (ms)
+const POLL_IDLE = 8000;      // 8s when no call — don't hammer server
+const POLL_SETUP = 800;     // 800ms during call setup (ringing → answer)
+const POLL_ACTIVE = 3000;   // 3s during active call (just for keepalive)
+
+const MAX_RING_TIME = 40000; // 40s max ringing before auto-end
+const ICE_RESTART_DELAY = 2000; // wait 2s after ICE failure before retry
+const MAX_RETRIES = 2;       // auto-retry ICE up to 2 times
 
 function log(...args) { console.log("[CALL]", ...args); }
 
@@ -23,6 +26,7 @@ export function useCall(userId) {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
+  const [connectionState, setConnectionState] = useState("idle"); // idle | connecting | ringing | connected | failed | ended
 
   const pcRef = useRef(null);
   const callIdRef = useRef(null);
@@ -32,6 +36,11 @@ export function useCall(userId) {
   const activeCallRef = useRef(null);
   const processedAnswerRef = useRef(false);
   const processedCandidatesRef = useRef(new Set());
+  const retryCountRef = useRef(0);
+  const ringingTimerRef = useRef(null);
+  const peerRef = useRef(null); // the other user's ID we're calling/being called by
+  const pollModeRef = useRef("idle"); // idle | setup | active
+  const isCallerRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
@@ -40,19 +49,26 @@ export function useCall(userId) {
     log("cleanup");
     if (pcRef.current) { try { pcRef.current.close(); } catch {} pcRef.current = null; }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (ringingTimerRef.current) { clearTimeout(ringingTimerRef.current); ringingTimerRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     setLocalStream(null);
     setRemoteStream(null);
     setActiveCall(null);
     setCallDuration(0);
+    setConnectionState("idle");
     startTimeRef.current = null;
     callIdRef.current = null;
+    peerRef.current = null;
+    isCallerRef.current = false;
     processedAnswerRef.current = false;
     processedCandidatesRef.current = new Set();
+    retryCountRef.current = 0;
+    pollModeRef.current = "idle";
   }
 
   useEffect(() => () => doCleanup(), []);
 
+  // ---- Media ----
   async function getLocalMedia(video = false) {
     if (localStreamRef.current) {
       const s = localStreamRef.current;
@@ -75,6 +91,7 @@ export function useCall(userId) {
     return stream;
   }
 
+  // ---- PeerConnection factory ----
   function createPC(isCaller) {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     const iceBuffer = [];
@@ -103,60 +120,77 @@ export function useCall(userId) {
 
     pc.ontrack = (e) => {
       log("!!! ontrack !!!", e.streams[0]?.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
-      log("remote audio tracks:", e.streams[0]?.getAudioTracks().length);
       if (e.streams[0]) {
         setRemoteStream(e.streams[0]);
       } else {
-        // Some browsers send tracks without a stream wrapper
-        log("No stream on track, creating one");
         const s = new MediaStream([e.track]);
         setRemoteStream(s);
       }
     };
 
     pc.oniceconnectionstatechange = () => {
-      log("ICE state:", pc.iceConnectionState);
-      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+      const state = pc.iceConnectionState;
+      log("ICE state:", state);
+
+      if (state === "connected" || state === "completed") {
         log("!!! ICE CONNECTED !!!");
+        setConnectionState("connected");
+        retryCountRef.current = 0; // reset retries on success
       }
-      if (pc.iceConnectionState === "failed") {
-        log("!!! ICE FAILED — no sound possible without TURN server !!!");
+
+      if (state === "failed") {
+        log("!!! ICE FAILED !!! retry:", retryCountRef.current);
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current++;
+          setConnectionState("connecting"); // show "reconnecting" to user
+          log("auto-restarting ICE in", ICE_RESTART_DELAY, "ms (attempt", retryCountRef.current, ")");
+          setTimeout(() => restartICE(), ICE_RESTART_DELAY);
+        } else {
+          log("ICE failed after", MAX_RETRIES, "retries");
+          setConnectionState("failed");
+        }
+      }
+
+      if (state === "disconnected") {
+        log("ICE disconnected — may reconnect");
+        // Don't immediately end — ICE might recover
       }
     };
 
     pc.onconnectionstatechange = () => {
       log("connection state:", pc.connectionState);
-      if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
-        log("connection lost, ending call");
-        endCall();
-      }
     };
-
-    // Diagnostic timeout
-    setTimeout(() => {
-      if (pcRef.current === pc) {
-        log("=== DIAGNOSTIC after 15s ===");
-        log("signaling:", pc.signalingState);
-        log("ICE:", pc.iceConnectionState);
-        log("gathering:", pc.iceGatheringState);
-        log("remote streams:", pc.getRemoteStreams().length);
-        log("local streams:", pc.getLocalStreams().length);
-        log("remoteDescription:", !!pc.remoteDescription);
-        log("localDescription:", !!pc.localDescription);
-        if (pc.getRemoteStreams().length > 0) {
-          const tracks = pc.getRemoteStreams()[0].getTracks();
-          log("remote tracks:", tracks.map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
-        }
-        log("=== END DIAGNOSTIC ===");
-      }
-    }, 15000);
 
     pcRef.current = pc;
     return pc;
   }
 
+  // ---- ICE restart ----
+  async function restartICE() {
+    const pc = pcRef.current;
+    const id = callIdRef.current;
+    if (!pc || !id) return;
+
+    try {
+      log("ICE restart: creating new offer");
+      const offer = await pc.createOffer({ iceRestart: true });
+      await pc.setLocalDescription(offer);
+      processedCandidatesRef.current = new Set();
+      processedAnswerRef.current = false;
+
+      // Send the new offer to the server (the restart endpoint resets the call)
+      await api.post(`/api/calls/${id}/restart`, { offer: pc.localDescription.toJSON() });
+      log("ICE restart: new offer sent, waiting for answer");
+    } catch (e) {
+      log("ICE restart failed:", e);
+      setConnectionState("failed");
+    }
+  }
+
+  // ---- Start call (caller) ----
   async function startCall(calleeId, video = false) {
     log("startCall", calleeId);
+    setConnectionState("connecting");
     const stream = await getLocalMedia(video);
     const pc = createPC(true);
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
@@ -165,30 +199,58 @@ export function useCall(userId) {
     const d = await api.post("/api/calls/start", { calleeId, offer: pc.localDescription.toJSON() });
     log("call created, id:", d.callId);
     callIdRef.current = d.callId;
+    peerRef.current = calleeId;
+    isCallerRef.current = true;
     processedAnswerRef.current = false;
-    // We don't know the callee's name yet — it will be filled in when the call becomes active
+    retryCountRef.current = 0;
+    pollModeRef.current = "setup";
+    setConnectionState("ringing");
     setActiveCall({ id: d.callId, status: "ringing", isCaller: true, video, otherUserId: calleeId });
+
+    // Auto-end after MAX_RING_TIME
+    ringingTimerRef.current = setTimeout(() => {
+      if (activeCallRef.current?.status === "ringing" && activeCallRef.current?.isCaller) {
+        log("call not answered in", MAX_RING_TIME / 1000, "s — auto-ending");
+        endCall();
+      }
+    }, MAX_RING_TIME);
   }
 
+  // ---- Answer call (callee) ----
   async function answerCall(callData, video = false) {
     log("answerCall", callData.id, "offer:", !!callData.offer);
+    setConnectionState("connecting");
     const stream = await getLocalMedia(video);
     const pc = createPC(false);
-    stream.getTracks().forEach(t => { log("adding track:", t.kind, t.enabled); pc.addTrack(t, stream); });
-    log("PC signaling after tracks:", pc.signalingState);
-    if (callData.offer) await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+    if (callData.offer) {
+      await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+    }
+
+    // Add any early ICE candidates from caller
     if (callData.candidates?.length) {
       log("adding", callData.candidates.length, "early candidates from caller");
-      for (const c of callData.candidates) { try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) { log("candidate error:", e.message); } }
+      for (const c of callData.candidates) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+      }
     }
+
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await api.post(`/api/calls/${callData.id}/answer`, { answer: pc.localDescription.toJSON() });
     log("answer sent!");
+
     callIdRef.current = callData.id;
+    peerRef.current = callData.callerId;
+    isCallerRef.current = false;
     processedAnswerRef.current = true;
+    retryCountRef.current = 0;
     startTimeRef.current = Date.now();
+    pollModeRef.current = "active";
     startDurationTimer();
+    setConnectionState("connecting"); // connecting until ICE completes
+
     setActiveCall({
       id: callData.id, status: "active", isCaller: false, video,
       otherUserId: callData.callerId,
@@ -196,6 +258,7 @@ export function useCall(userId) {
     });
   }
 
+  // ---- End call ----
   async function endCall() {
     log("endCall");
     const id = callIdRef.current;
@@ -203,6 +266,7 @@ export function useCall(userId) {
     if (id) api.post(`/api/calls/${id}/end`).catch(() => {});
   }
 
+  // ---- Upgrade audio → video ----
   async function upgradeToVideo() {
     if (!pcRef.current) return;
     try {
@@ -225,12 +289,31 @@ export function useCall(userId) {
     }, 1000);
   }
 
-  // ---- SIGNALING: Polling only (SSE dies after 30s on Render free tier) ----
+  // ---- POLLING: Adaptive interval ----
   useEffect(() => {
     if (!userId) return;
-    log("starting polling for user", userId);
+    log("polling system started for user", userId);
     let cancelled = false;
     let pollTimer = null;
+    let lastPollMode = "idle";
+
+    function getPollInterval() {
+      const mode = pollModeRef.current;
+      if (mode === "active") return POLL_ACTIVE;
+      if (mode === "setup") return POLL_SETUP;
+      return POLL_IDLE;
+    }
+
+    function schedulePoll() {
+      if (pollTimer) clearTimeout(pollTimer);
+      if (cancelled) return;
+      const interval = getPollInterval();
+      pollTimer = setTimeout(async () => {
+        if (cancelled) return;
+        await pollOnce();
+        schedulePoll();
+      }, interval);
+    }
 
     async function pollOnce() {
       if (cancelled) return;
@@ -243,16 +326,20 @@ export function useCall(userId) {
 
           // Case 1: Incoming call (not from us, not already handling)
           if (c.status === "ringing" && !c.isCaller && c.id !== myId) {
-            log("POLL: incoming call", c.id);
+            log("POLL: incoming call", c.id, "from", c.callerName);
             callIdRef.current = c.id;
+            peerRef.current = c.callerId;
+            isCallerRef.current = false;
             processedAnswerRef.current = false;
+            pollModeRef.current = "setup";
+            setConnectionState("ringing");
             setActiveCall({
               id: c.id, status: "ringing", isCaller: false, video: false,
               otherUserId: c.callerId,
               otherUser: { name: c.callerName, avatar: c.callerAvatar },
               offer: c.offer, candidates: c.candidates || [],
             });
-            // Pre-warm mic
+            // Pre-warm mic so answer is instant
             try {
               const s = await navigator.mediaDevices.getUserMedia({ audio: true });
               localStreamRef.current = s;
@@ -267,7 +354,10 @@ export function useCall(userId) {
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(c.answer));
               log("Remote description set! ICE state:", pcRef.current.iceConnectionState);
               processedAnswerRef.current = true;
-              // Add callee's candidates
+              pollModeRef.current = "active";
+              setConnectionState("connecting"); // wait for ICE to complete
+
+              // Add callee's ICE candidates
               if (c.candidates?.length) {
                 log("adding", c.candidates.length, "callee candidates");
                 for (const cand of c.candidates) {
@@ -285,13 +375,14 @@ export function useCall(userId) {
               setActiveCall(p => p ? { ...p, status: "active", otherUser: { name: otherName, avatar: otherAvatar }, otherUserId } : p);
             }
 
-          // Case 3: We answered and call is active (callee already answered)
+          // Case 3: We answered and call became active (callee sees active)
           } else if (c.id === myId && c.status === "active" && cur?.status === "ringing" && !c.isCaller) {
-            log("POLL: we are active");
+            log("POLL: we answered, call is active");
+            pollModeRef.current = "active";
             setActiveCall(p => p ? { ...p, status: "active" } : p);
           }
 
-          // Case 5: Late ICE candidates (call already active, but candidates arrived after answer)
+          // Case 5: Late ICE candidates (call already active, new candidates arrived)
           if (c.id === myId && c.status === "active" && c.candidates?.length && pcRef.current) {
             let added = 0;
             for (const cand of c.candidates) {
@@ -313,21 +404,16 @@ export function useCall(userId) {
       } catch (e) { log("poll error:", e.message); }
     }
 
-    // Start polling immediately — 1s interval for fast detection
-    pollTimer = setInterval(pollOnce, 1000);
-    log("polling started (1s)");
-
-    // Also do an immediate first poll
-    pollOnce();
+    schedulePoll();
 
     return () => {
       cancelled = true;
-      if (pollTimer) clearInterval(pollTimer);
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [userId]);
 
   return {
-    activeCall, localStream, remoteStream, callDuration,
+    activeCall, localStream, remoteStream, callDuration, connectionState,
     startCall, answerCall, endCall, upgradeToVideo, toggleMute, toggleCamera,
   };
 }
