@@ -402,8 +402,12 @@ export function useCall(userId) {
           }
         } else if (!d.call && callIdRef.current) {
           nullPollCountRef.current++;
-          if (nullPollCountRef.current >= 3) {
-            log("POLL: call ended (3 consecutive nulls)");
+          // During active calls: end immediately (1 null = 3s)
+          // During setup/ringing: debounce with 3 nulls (server might be waking up)
+          const cur = activeCallRef.current;
+          const threshold = cur?.status === "active" ? 1 : 3;
+          if (nullPollCountRef.current >= threshold) {
+            log("POLL: call ended (" + nullPollCountRef.current + " nulls, status was " + (cur?.status || "unknown") + ")");
             doCleanup();
           } else {
             log("POLL: null (" + nullPollCountRef.current + "/3 — waiting)");
