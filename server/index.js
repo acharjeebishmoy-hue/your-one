@@ -293,9 +293,10 @@ app.post("/api/identity", wrap(async (req, res) => {
   try {
     await db.prepare("UPDATE users SET name = ? WHERE id = ?").run(name, me.id);
     if (!hadName) {
-      // A new friend joined the group — let everyone with a name know 🎉
-      const members = await db.prepare("SELECT id FROM users WHERE name IS NOT NULL AND id != ?").all(me.id);
-      for (const m of members) await notify({ userId: m.id, actorId: me.id, type: "join" });
+      // Non-blocking: notify everyone but don't await (prevents 100+ sequential queries from hanging)
+      db.prepare("SELECT id FROM users WHERE name IS NOT NULL AND id != ?").all(me.id)
+        .then(members => { for (const m of members) notify({ userId: m.id, actorId: me.id, type: "join" }).catch(() => {}); })
+        .catch(() => {});
     }
     res.json({ user: publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").get(me.id)) });
   } catch (e) {
