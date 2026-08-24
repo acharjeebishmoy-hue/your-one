@@ -30,6 +30,9 @@ self.addEventListener("push", (e) => {
     body: data.body || "",
     icon: data.icon || "/logo.svg",
     badge: "/logo.svg",
+    vibrate: [200, 100, 200], // buzz pattern — works even when screen is off
+    requireInteraction: false, // auto-dismiss on Android (like WhatsApp)
+    tag: data.tag || "yourone", // group notifications together (not a flood)
     data: { url: data.url || "/" },
   };
   e.waitUntil(self.registration.showNotification(title, options));
