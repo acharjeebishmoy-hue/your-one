@@ -1227,10 +1227,38 @@ app.post("/api/calls/:id/end", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// Poll for incoming/updated calls (fallback for browsers without SSE)
+// Auto-expire stale ringing calls (>45s) — prevents zombie calls from blocking new ones
+setInterval(async () => {
+  try {
+    await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE status = 'ringing' AND created_at < NOW() - INTERVAL '45 seconds'").run();
+  } catch {}
+}, 30000);
+
+// ICE restart — caller sends new offer after connection failure
+app.post("/api/calls/:id/restart", wrap(async (req, res) => {
+  const user = await deviceUser(req);
+  const { offer } = req.body;
+  if (!offer) return res.status(400).json({ error: "Missing offer" });
+  const call = await db.prepare("SELECT * FROM calls WHERE id = ?").get(req.params.id);
+  if (!call) return res.status(404).json({ error: "Call not found" });
+  if (call.caller_id !== user.id) return res.status(403).json({ error: "Not your call" });
+  // Reset the call to ringing with the new offer
+  await db.prepare("UPDATE calls SET status = 'ringing', offer = ?, answer = NULL, candidates = '[]', started_at = NULL WHERE id = ?").run(JSON.stringify(offer), req.params.id);
+  // Notify callee of the new offer
+  broadcastToUser(call.callee_id, {
+    type: "incoming", callId: call.id, callerId: user.id,
+    callerName: user.name, callerAvatar: user.avatar,
+    offer, candidates: [],
+  });
+  res.json({ ok: true });
+}));
+
+// Poll for incoming/updated calls (primary signaling — SSE is unreliable on free tier)
 app.get("/api/calls/poll", wrap(async (req, res) => {
   const user = await deviceUser(req);
   if (!user) return res.json({ call: null });
+  // Clean up any stale ringing calls for this user (>45s old) before polling
+  await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE status = 'ringing' AND (caller_id = ? OR callee_id = ?) AND created_at < NOW() - INTERVAL '45 seconds'").run(user.id, user.id);
   // Find the most recent active/ringing call involving this user
   const call = await db.prepare("SELECT c.*, u1.name as caller_name, u1.avatar as caller_avatar, u2.name as callee_name, u2.avatar as callee_avatar FROM calls c JOIN users u1 ON c.caller_id = u1.id JOIN users u2 ON c.callee_id = u2.id WHERE (c.caller_id = ? OR c.callee_id = ?) AND c.status IN ('ringing', 'active') ORDER BY c.created_at DESC LIMIT 1").get(user.id, user.id);
   if (!call) return res.json({ call: null });
