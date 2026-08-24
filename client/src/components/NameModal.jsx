@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../auth.jsx";
+import { enablePush } from "../push.js";
 
 export function NameModal({ onClose }) {
   const { user, pickName } = useAuth();
@@ -17,6 +18,9 @@ export function NameModal({ onClose }) {
     try {
       await pickName(name);
       onClose();
+      // Auto-enable push notifications right after name pick (user gesture = browser allows it)
+      // This makes notifications work like WhatsApp — no extra steps for the farmer
+      enablePush().catch(() => {});
     } catch (err) {
       setError(err.message);
       setBusy(false);
