@@ -29,7 +29,7 @@ export function PushBanner() {
     return (
       <div className="push-banner pb-done">
         <span className="pb-text">
-          You're all set! Notifications are on — check your phone, a test just popped.
+          Notifications are on — you'll get alerts for messages, calls, and more.
         </span>
         <button
           className="pb-x"
@@ -44,10 +44,23 @@ export function PushBanner() {
       </div>
     );
   }
-  if (state === "loading" || state === "unsupported" || state === "on" || state === "denied") return null;
-  // Banner stays until farmer taps "Turn on" — can't be dismissed
+  // Show banner for: default (never asked), off (permission granted but no subscription)
+  // Also show for denied — tell user to fix in browser settings
+  if (state === "loading" || state === "unsupported" || state === "on") return null;
 
   const onIphone = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone;
+
+  // If denied — tell user how to fix
+  if (state === "denied") {
+    return (
+      <div className="push-banner pb-denied">
+        <span className="pb-emoji"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
+        <span className="pb-text">
+          Notifications are blocked. Tap the lock icon next to the address bar → Site settings → Notifications → Allow.
+        </span>
+      </div>
+    );
+  }
 
   async function turnOn() {
     setBusy(true);
@@ -58,7 +71,7 @@ export function PushBanner() {
       setDone(true);
       setTimeout(() => setState("on"), 4000);
     } else {
-      setState(r.reason === "denied" ? "denied" : "default");
+      setState(r.reason === "denied" ? "denied" : "off");
     }
     setBusy(false);
   }
@@ -67,7 +80,7 @@ export function PushBanner() {
     <div className="push-banner">
       <span className="pb-emoji"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>
       <span className="pb-text">
-        Get notified when friends message you — even when the app is closed.
+        Turn on notifications — get alerts for messages, calls, and friend activity.
       </span>
       <button className="pb-btn" onClick={turnOn} disabled={busy}>
         {busy ? "Setting up…" : "Turn on"}
