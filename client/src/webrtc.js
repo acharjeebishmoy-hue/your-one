@@ -2,12 +2,18 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "./api.js";
 
 const ICE_SERVERS = [
+  // STUN servers — find your public IP
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
   { urls: "stun:stun2.l.google.com:19302" },
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
   { urls: "stun:stun.services.mozilla.com" },
+  // TURN servers — relay audio when direct connection fails (NAT traversal)
+  // This is what makes Bangladesh 3G → London 5G calls work
+  { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turns:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
 ];
 
 // Adaptive polling intervals (ms)
