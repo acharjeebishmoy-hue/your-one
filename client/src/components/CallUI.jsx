@@ -61,6 +61,14 @@ export function CallUI({
     if (call) log("call state:", call.status, "isCaller:", call.isCaller, "connectionState:", connectionState);
   }, [call, connectionState]);
 
+  // Auto-close failed calls after 3s so farmer never stares at an error screen
+  useEffect(() => {
+    if (connectionState === "failed") {
+      const t = setTimeout(() => { if (onEnd) onEnd(); }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [connectionState, onEnd]);
+
   function handleUnmute() {
     const el = remoteAudioRef.current;
     if (el) {
@@ -101,21 +109,12 @@ export function CallUI({
       {/* Hidden audio — always renders, always plays remote stream */}
       <audio ref={remoteAudioRef} autoPlay playsInline muted={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0.01, pointerEvents: "none" }} />
 
-      {/* Tap-to-unmute banner */}
-      {audioBlocked && !isRinging && (
-        <div
-          onClick={handleUnmute}
-          style={{
-            position: "fixed", top: 0, left: 0, right: 0, zIndex: 10001,
-            background: "#1a73e8", color: "white", textAlign: "center",
-            padding: "12px 16px", fontSize: 15, fontWeight: 600, cursor: "pointer",
-          }}
-        >
-          Tap here to enable sound
-        </div>
-      )}
-
-      <div className={`call-overlay ${isVideo && !isRinging ? "call-video" : ""}`}>
+      {/* No scary banners — entire screen is a tap target for audio */}
+      <div
+        className={`call-overlay ${isVideo && !isRinging ? "call-video" : ""}`}
+        onClick={handleUnmute}
+        style={{ cursor: "pointer" }}
+      >
         {isVideo && !isRinging ? (
           <div className="call-video-container">
             <video ref={remoteVideoRef} autoPlay playsInline className="call-remote-video" />
