@@ -80,7 +80,7 @@ export function CallUI({
   // Build the status text based on connection state
   let statusText = "";
   if (isFailed) {
-    statusText = "Call failed — no connection";
+    statusText = "Could not connect";
   } else if (isRinging && call.isCaller) {
     statusText = "Ringing...";
   } else if (isRinging && !call.isCaller) {
