@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { POLL_MS, SKIP_PRESENCE } from "./perf.js";
-import { enablePush, getPushState } from "./push.js";
+import { getPushState } from "./push.js";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api.js";
 import { useAuth } from "./auth.jsx";
@@ -48,15 +48,16 @@ export default function App() {
     return () => clearInterval(t);
   }, [user?.name]);
 
-  // Push notifications: auto-subscribe if already granted, show setup modal if not
+  // Push notifications: show setup overlay when notifications aren't enabled
+  // IMPORTANT: enablePush() MUST be called from a click handler (user gesture).
+  // Calling it from useEffect silently fails because Chrome blocks requestPermission().
   useEffect(() => {
     if (!user?.name) return;
-    // If permission already granted but no subscription → silently subscribe
     getPushState().then(s => {
-      if (s === "off") enablePush().catch(() => {});
-      if (s === "default") {
-        // Not yet decided — show the setup modal on mobile (phone-width)
-        if (window.innerWidth <= 640) setPushSetupOpen(true);
+      // Show overlay if notifications are off, default (never asked), or unsupported
+      // Don't show if already on or denied (user chose to block)
+      if (s === "default" || s === "off") {
+        setPushSetupOpen(true);
       }
     });
   }, [user?.name]);
