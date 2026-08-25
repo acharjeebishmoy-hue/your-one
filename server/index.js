@@ -1155,7 +1155,9 @@ app.get("/api/calls/stream", (req, res) => {
   res.write(`data: {"type":"connected"}\n\n`);
   if (!sseClients.has(userId)) sseClients.set(userId, new Set());
   sseClients.get(userId).add(res);
-  req.on("close", () => { sseClients.get(userId)?.delete(res); });
+  // Keepalive ping every 15s — prevents Render proxy from killing idle SSE connections
+  const ping = setInterval(() => { try { res.write(`: keepalive\n\n`); } catch {} }, 15000);
+  req.on("close", () => { clearInterval(ping); sseClients.get(userId)?.delete(res); });
 });
 
 // Start a call
@@ -1217,6 +1219,9 @@ app.post("/api/calls/:id/candidate", wrap(async (req, res) => {
   if (candidates?.length) existing.push(...candidates);
   else if (candidate) existing.push(candidate);
   await db.prepare("UPDATE calls SET candidates = ? WHERE id = ?").run(JSON.stringify(existing), req.params.id);
+  // Notify the other party instantly via SSE so they can add candidates immediately
+  const otherId = call.caller_id === user.id ? call.callee_id : call.caller_id;
+  broadcastToUser(otherId, { type: "candidates", callId: call.id, candidates: existing });
   res.json({ ok: true });
 }));
 
