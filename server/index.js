@@ -1352,6 +1352,9 @@ app.use((err, req, res, next) => {
 
 await initDb();
 await ensureBucket();
+// Initialize VAPID keys at startup — must happen BEFORE any push is sent
+// so the in-memory cache is populated from the DB (not generated fresh)
+await getVapidKeys();
 app.listen(PORT, () => {
   console.log(`🌐 Social app server running at http://localhost:${PORT}`);
   console.log(isSupabase ? "☁️  Connected to Supabase (Postgres)" : "💾 Using local SQLite — set DATABASE_URL in .env to use Supabase");
