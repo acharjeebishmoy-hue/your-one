@@ -17,7 +17,7 @@ const ICE_SERVERS = [
 ];
 
 // Adaptive polling intervals (ms)
-const POLL_IDLE = 8000;      // 8s when no call — don't hammer server
+const POLL_IDLE = 4000;      // 4s when no call — fast enough to feel instant
 const POLL_SETUP = 800;     // 800ms during call setup (ringing → answer)
 const POLL_ACTIVE = 3000;   // 3s during active call (just for keepalive)
 
@@ -76,6 +76,54 @@ export function useCall(userId) {
   }
 
   useEffect(() => () => doCleanup(), []);
+
+  // ---- SSE: instant call notifications (bypasses 4s polling delay) ----
+  useEffect(() => {
+    if (!userId) return;
+    let es = null;
+    let reconnectTimer = null;
+    let alive = true;
+
+    function connect() {
+      if (!alive) return;
+      try {
+        // Server streams instant notifications for this user's calls
+        es = new EventSource(`/api/calls/stream?userId=${encodeURIComponent(userId)}`);
+        es.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === "connected") {
+              log("SSE: connected");
+              return;
+            }
+            // Any call event → trigger an immediate poll to get full state
+            log("SSE: event received", data.type);
+            // Bump polling to setup mode so next poll is fast
+            pollModeRef.current = "setup";
+            // We'll trigger a poll by dispatching a custom event that the poll loop listens to
+            window.dispatchEvent(new CustomEvent("call-sse-event"));
+          } catch {}
+        };
+        es.onerror = () => {
+          log("SSE: connection lost, reconnecting in 3s");
+          es.close();
+          es = null;
+          if (alive) reconnectTimer = setTimeout(connect, 3000);
+        };
+      } catch (e) {
+        log("SSE: connect failed", e.message);
+        if (alive) reconnectTimer = setTimeout(connect, 5000);
+      }
+    }
+
+    connect();
+
+    return () => {
+      alive = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (es) es.close();
+    };
+  }, [userId]);
 
   // ---- Media ----
   async function getLocalMedia(video = false) {
@@ -461,10 +509,19 @@ export function useCall(userId) {
       } catch (e) { log("poll error:", e.message); }
     }
 
+    // Trigger immediate poll when SSE delivers an event
+    function onSseEvent() {
+      // Cancel any pending poll and poll immediately
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      pollOnce().then(() => schedulePoll());
+    }
+    window.addEventListener("call-sse-event", onSseEvent);
+
     schedulePoll();
 
     return () => {
       cancelled = true;
+      window.removeEventListener("call-sse-event", onSseEvent);
       if (pollTimer) clearTimeout(pollTimer);
     };
   }, [userId]);
