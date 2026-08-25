@@ -56,33 +56,22 @@ export function PushSetup({ onComplete }) {
 
   async function handleEnable() {
     setStep("enabling");
-    setDetail("Requesting permission...");
+    setDetail("Setting up notifications...");
 
     try {
-      // Step 1: Request permission
-      const perm = await Notification.requestPermission();
-      setDetail(`Permission: ${perm}`);
-
-      if (perm !== "granted") {
-        setStep("denied");
-        setDetail("You denied notifications. Tap the lock icon 🔒 next to the URL → Site settings → Notifications → Allow.");
-        return;
-      }
-
-      setDetail("Permission granted! Subscribing...");
-
-      // Step 2: Subscribe
+      // enablePush() handles everything: permission -> SW -> VAPID -> subscribe -> save
+      // It has retry logic for Render cold starts and detailed error reporting.
       const result = await enablePush();
       if (result.ok) {
         setDetail("Subscribed! Sending test notification...");
-        // Step 3: Test
         await api.post("/api/push/test").catch(() => {});
         setStep("success");
         setDetail("Notifications are working! You'll get alerts for messages and calls.");
         setTimeout(() => onComplete?.(), 2000);
       } else {
         setStep("failed");
-        setDetail(`Subscribe failed: ${result.reason}. Try closing and reopening the app.`);
+        // Show the ACTUAL error detail so we can debug
+        setDetail(result.detail || result.reason);
       }
     } catch (e) {
       setStep("failed");
@@ -193,6 +182,12 @@ export function PushSetup({ onComplete }) {
         >
           {step === "enabling" ? "Setting up..." : "Turn on notifications"}
         </button>
+
+        {step === "failed" && (
+          <button className="ps-btn" onClick={handleEnable} style={{marginTop: 8}}>
+            Try again
+          </button>
+        )}
 
         <button className="ps-skip" onClick={onComplete}>
           Skip for now
