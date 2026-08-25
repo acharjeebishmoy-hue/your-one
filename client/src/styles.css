@@ -2429,6 +2429,10 @@ html.low-end .spin {
   background: #22c55e;
   animation: call-ring 1.2s ease infinite;
 }
+.call-answer-video {
+  background: #3b82f6;
+  animation: call-ring 1.2s ease infinite;
+}
 @keyframes call-ring {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
