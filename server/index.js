@@ -92,9 +92,9 @@ async function getVapidKeys() {
 
   if (!pub || !priv) {
     try {
-      const row = db.prepare("SELECT value FROM app_config WHERE key = 'vapid_public'").get();
+      const row = await db.prepare("SELECT value FROM app_config WHERE key = 'vapid_public'").get();
       pub = row?.value || null;
-      const row2 = db.prepare("SELECT value FROM app_config WHERE key = 'vapid_private'").get();
+      const row2 = await db.prepare("SELECT value FROM app_config WHERE key = 'vapid_private'").get();
       priv = row2?.value || null;
     } catch {
       // DB not ready yet (cold start) — will retry on next call
