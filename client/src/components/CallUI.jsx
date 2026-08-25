@@ -21,6 +21,73 @@ export function CallUI({
   const localVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const ringIntervalRef = useRef(null);
+
+  // Vibrate + ringtone when incoming call arrives
+  useEffect(() => {
+    const isRinging = call?.status === "ringing" && !call?.isCaller;
+    if (!isRinging) {
+      // Stop vibration and ringtone
+      if (ringIntervalRef.current) {
+        clearInterval(ringIntervalRef.current);
+        ringIntervalRef.current = null;
+      }
+      return;
+    }
+    // Vibrate in a pattern: buzz-pause-buzz-pause (like a real phone ring)
+    const pattern = [300, 200, 300, 200, 300, 200];
+    if (navigator.vibrate) {
+      navigator.vibrate(pattern);
+      ringIntervalRef.current = setInterval(() => navigator.vibrate(pattern), 2000);
+    }
+    // Also try to play a ringtone using Web Audio API
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      function playRing() {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 440;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      }
+      playRing();
+      const ringTone = setInterval(playRing, 1500);
+      // Merge cleanup
+      const orig = ringIntervalRef.current;
+      ringIntervalRef.current = setInterval(() => {
+        navigator.vibrate?.(pattern);
+      }, 2000);
+      // Store cleanup for both
+      return () => {
+        clearInterval(ringTone);
+        clearInterval(ringIntervalRef.current);
+        ringIntervalRef.current = null;
+        try { ctx.close(); } catch {}
+      };
+    } catch {}
+    return () => {
+      if (ringIntervalRef.current) {
+        clearInterval(ringIntervalRef.current);
+        ringIntervalRef.current = null;
+      }
+    };
+  }, [call?.status, call?.isCaller]);
+
+  // Stop vibration when call is answered or ended
+  useEffect(() => {
+    if (!call || call.status !== "ringing") {
+      if (ringIntervalRef.current) {
+        clearInterval(ringIntervalRef.current);
+        ringIntervalRef.current = null;
+        navigator.vibrate?.(0);
+      }
+    }
+  }, [call?.status]);
 
   // Attach remoteStream to audio — retry aggressively until it plays
   useEffect(() => {
