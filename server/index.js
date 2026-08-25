@@ -715,8 +715,8 @@ app.post("/api/push/status", wrap(async (req, res) => {
 // Fire a test push to the caller right now — used right after enabling, so the
 // user SEES a real notification pop up instantly as proof it works.
 app.post("/api/push/test", wrap(async (req, res) => {
-  const me = await namedUser(req, res);
-  if (!me) return;
+  const me = await deviceUser(req);
+  if (!me) return res.status(401).json({ error: "missing device" });
   // Send test push WITHOUT delete-on-failure.
   // FCM can return 404 right after subscription creation while propagating.
   // A failure here does NOT mean the subscription is broken.
@@ -740,8 +740,8 @@ app.post("/api/push/test", wrap(async (req, res) => {
 }));
 
 app.post("/api/push/subscribe", wrap(async (req, res) => {
-  const me = await namedUser(req, res);
-  if (!me) return;
+  const me = await deviceUser(req);
+  if (!me) return res.status(401).json({ error: "missing device" });
   const { endpoint, p256dh, auth } = req.body || {};
   if (!endpoint || !p256dh || !auth) return res.status(400).json({ error: "Missing subscription" });
   await db
