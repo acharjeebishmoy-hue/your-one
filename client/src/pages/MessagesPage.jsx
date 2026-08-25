@@ -366,10 +366,17 @@ export function MessagesPage({ call }) {
                 {!call?.activeCall && active.id && (
                   <button
                     className="msg-call-btn"
-                    onClick={() => { call?.startCall(active.id); /* video call */ }}
+                    onClick={async () => {
+                      try {
+                        await call?.startCall(active.id, true);
+                      } catch (e) {
+                        console.log("Video call failed:", e.message);
+                      }
+                    }}
                     title="Video call"
-                    style={{ display: 'none' }}
-                  />
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                  </button>
                 )}
                 <button
                   className="icon-btn msg-del-chat"
