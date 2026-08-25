@@ -99,7 +99,7 @@ export default function App() {
         remoteStream={call.remoteStream}
         callDuration={call.callDuration}
         connectionState={call.connectionState}
-        onAnswer={(callData) => {
+        onAnswer={(callData, video) => {
           if (callData?.offer) {
             call.answerCall({
               id: callData.id,
@@ -108,7 +108,7 @@ export default function App() {
               candidates: callData.candidates || [],
               callerName: callData.otherUser?.name,
               callerAvatar: callData.otherUser?.avatar,
-            });
+            }, video);
           }
         }}
         onEnd={call.endCall}
