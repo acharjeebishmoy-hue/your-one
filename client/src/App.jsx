@@ -23,6 +23,7 @@ import { MessagesPage } from "./pages/MessagesPage.jsx";
 import { Events } from "./pages/Events.jsx";
 import { HashtagPage } from "./pages/HashtagPage.jsx";
 import { Profile } from "./pages/Profile.jsx";
+import { PushTest } from "./pages/PushTest.jsx";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -84,6 +85,7 @@ export default function App() {
             <Route path="/hashtag/:tag" element={<HashtagPage />} />
             <Route path="/u/:name" element={<Profile />} />
             <Route path="/p/:id" element={<PostModal />} />
+            <Route path="/push-test" element={<PushTest />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
