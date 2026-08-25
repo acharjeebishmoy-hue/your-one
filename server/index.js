@@ -111,10 +111,18 @@ async function sendPushToUser(userId, { title, body, url = "/" }) {
           JSON.stringify({ title, body, url, icon: "/logo.svg" })
         );
       } catch (err) {
-        // 404/410 = subscription gone (uninstalled). 403 = the VAPID keys changed, so this
-        // subscription can never receive pushes again — drop it and let the client re-enable.
-        if (err.statusCode === 404 || err.statusCode === 410 || err.statusCode === 403) {
+        // Don't delete on first failure — FCM can return 404 while propagating a new subscription.
+        // Only delete after we've seen 3+ consecutive failures (tracked via a fail_count column).
+        // On 410 (Gone = subscription explicitly unsubscribed), delete immediately.
+        if (err.statusCode === 410) {
           await db.prepare("DELETE FROM push_subscriptions WHERE id = ?").run(s.id);
+        } else if (err.statusCode === 404 || err.statusCode === 403) {
+          // Increment fail count — delete only after 3 consecutive failures
+          await db.prepare("UPDATE push_subscriptions SET fail_count = COALESCE(fail_count, 0) + 1 WHERE id = ?").run(s.id);
+          const fc = await db.prepare("SELECT fail_count FROM push_subscriptions WHERE id = ?").get(s.id);
+          if (fc && fc.fail_count >= 3) {
+            await db.prepare("DELETE FROM push_subscriptions WHERE id = ?").run(s.id);
+          }
         }
       }
     }
@@ -688,11 +696,25 @@ app.post("/api/push/status", wrap(async (req, res) => {
 app.post("/api/push/test", wrap(async (req, res) => {
   const me = await namedUser(req, res);
   if (!me) return;
-  await sendPushToUser(me.id, {
-    title: "Your One",
-    body: "✅ You're all set! You'll get notified even when the app is closed.",
-    url: "/",
-  });
+  // Send test push WITHOUT delete-on-failure.
+  // FCM can return 404 right after subscription creation while propagating.
+  // A failure here does NOT mean the subscription is broken.
+  try {
+    await getVapidKeys();
+    const subs = await db.prepare("SELECT * FROM push_subscriptions WHERE user_id = ?").all(me.id);
+    for (const s of subs) {
+      try {
+        await webPush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          JSON.stringify({ title: "Your One", body: "You're all set!", url: "/", icon: "/logo.svg" })
+        );
+        // Reset fail count on success
+        await db.prepare("UPDATE push_subscriptions SET fail_count = 0 WHERE id = ?").run(s.id);
+      } catch {
+        // Test push failed — do NOT delete subscription
+      }
+    }
+  } catch {}
   res.json({ ok: true });
 }));
 
@@ -704,7 +726,7 @@ app.post("/api/push/subscribe", wrap(async (req, res) => {
   await db
     .prepare(
       `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
-       ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`
+       ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, fail_count = 0`
     )
     .run(me.id, String(endpoint).slice(0, 1000), String(p256dh).slice(0, 500), String(auth).slice(0, 500));
   res.json({ ok: true });
