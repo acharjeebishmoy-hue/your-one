@@ -79,27 +79,42 @@ async function notify({ userId, actorId, type, postId = null, body = null }) {
 
 // VAPID keys are generated once and persisted in the DB so they survive redeploys.
 // (Changing them would invalidate everyone's existing subscriptions.)
+let _vapidPub = null;
+let _vapidPriv = null;
+
 async function getVapidKeys() {
-  // Priority: env vars > DB > generate once
-  // NEVER regenerate if keys already exist — changing VAPID keys invalidates ALL subscriptions
+  // Return cached keys immediately — NEVER regenerate once loaded
+  if (_vapidPub && _vapidPriv) return _vapidPub;
+
+  // Priority: env vars > DB. NEVER generate new keys.
   let pub = process.env.VAPID_PUBLIC_KEY || null;
   let priv = process.env.VAPID_PRIVATE_KEY || null;
 
   if (!pub || !priv) {
-    const cfg = (k) => db.prepare("SELECT value FROM app_config WHERE key = ?").get(k);
-    pub = cfg("vapid_public")?.value;
-    priv = cfg("vapid_private")?.value;
+    try {
+      const row = db.prepare("SELECT value FROM app_config WHERE key = 'vapid_public'").get();
+      pub = row?.value || null;
+      const row2 = db.prepare("SELECT value FROM app_config WHERE key = 'vapid_private'").get();
+      priv = row2?.value || null;
+    } catch {
+      // DB not ready yet (cold start) — will retry on next call
+      return null;
+    }
   }
 
   if (!pub || !priv) {
-    // FIRST TIME ONLY: generate keys, save to DB forever
+    // Truly first startup — generate once, save to DB forever
     const keys = webPush.generateVAPIDKeys();
     pub = keys.publicKey;
     priv = keys.privateKey;
-    await db.prepare("INSERT INTO app_config (key, value) VALUES ('vapid_public', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(pub);
-    await db.prepare("INSERT INTO app_config (key, value) VALUES ('vapid_private', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(priv);
+    try {
+      await db.prepare("INSERT INTO app_config (key, value) VALUES ('vapid_public', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(pub);
+      await db.prepare("INSERT INTO app_config (key, value) VALUES ('vapid_private', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(priv);
+    } catch {}
   }
 
+  _vapidPub = pub;
+  _vapidPriv = priv;
   webPush.setVapidDetails("mailto:yourone@app.local", pub, priv);
   return pub;
 }
