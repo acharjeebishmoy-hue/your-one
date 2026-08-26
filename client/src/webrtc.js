@@ -182,30 +182,43 @@ export function useCall(userId) {
       log("ICE gathering:", pc.iceGatheringState);
     };
 
-    // CRITICAL FIX: Handle ontrack properly to prevent track loss
-    // When e.streams[0] is null (tracks arrive separately), merge into one stream
+    // CRITICAL: ontrack — handles both single-stream and separate-track modes
+    // Common on mobile: audio and video tracks arrive in separate ontrack calls
+    let _streamReattachCount = 0;
     pc.ontrack = (e) => {
       const trackInfo = `${e.track.kind}:${e.track.readyState}:${e.track.enabled}`;
       log("!!! ontrack !!!", trackInfo, "streams:", e.streams?.length);
 
       if (e.streams && e.streams[0]) {
-        setRemoteStream(e.streams[0]);
-        remoteStreamRef.current = e.streams[0];
+        const s = e.streams[0];
+        remoteStreamRef.current = s;
+        setRemoteStream(s);
+        log("ontrack: set stream from e.streams[0]," + s.getTracks().length + " tracks");
       } else {
-        // No stream — tracks arriving separately, must merge into one MediaStream
-        const existing = remoteStreamRef.current;
-        if (existing) {
-          if (!existing.getTracks().find(t => t.id === e.track.id)) {
-            existing.addTrack(e.track);
-            log("merged track into existing stream:", trackInfo);
-          }
-          setRemoteStream(existing);
-        } else {
-          const s = new MediaStream([e.track]);
-          remoteStreamRef.current = s;
-          setRemoteStream(s);
-          log("created new stream with track:", trackInfo);
+        // Separate track mode — merge into one MediaStream
+        let existing = remoteStreamRef.current;
+        if (!existing) {
+          existing = new MediaStream();
+          remoteStreamRef.current = existing;
         }
+        // Only add if not already present
+        if (!existing.getTracks().find(t => t.id === e.track.id)) {
+          existing.addTrack(e.track);
+          log("ontrack: merged" + trackInfo + " into stream, total tracks:", existing.getTracks().length);
+        }
+        // Force a NEW MediaStream reference so React detects the change
+        _streamReattachCount++;
+        const freshStream = new MediaStream(existing.getTracks());
+        remoteStreamRef.current = freshStream;
+        setRemoteStream(freshStream);
+      }
+
+      // CRITICAL: Force-enable ALL audio tracks immediately when they arrive
+      const rs = remoteStreamRef.current;
+      if (rs) {
+        rs.getAudioTracks().forEach(t => {
+          if (!t.enabled) { t.enabled = true; log("ontrack: force-enabled remote audio"); }
+        });
       }
     };
 
@@ -217,14 +230,28 @@ export function useCall(userId) {
         log("!!! ICE CONNECTED !!!");
         setConnectionState("connected");
         retryCountRef.current = 0; // reset retries on success
-        // CRITICAL: After ICE connects, force-enable ALL audio tracks
-        // This handles the case where tracks were muted before ICE connected
-        setTimeout(() => {
+        // CRITICAL: Force-enable ALL audio tracks immediately and repeatedly
+        // Audio tracks sometimes get disabled by the browser or arrive muted
+        function forceUnmuteAll() {
           const rs = remoteStreamRef.current;
-          if (rs) rs.getAudioTracks().forEach(t => { if (!t.enabled) { t.enabled = true; log("ICE connected: force-unmuted remote audio"); } });
+          if (rs) {
+            rs.getAudioTracks().forEach(t => {
+              if (!t.enabled) { t.enabled = true; log("ICE: force-unmuted remote audio"); }
+            });
+          }
           const ls = localStreamRef.current;
-          if (ls) ls.getAudioTracks().forEach(t => { if (!t.enabled) { t.enabled = true; log("ICE connected: force-unmuted local audio"); } });
-        }, 500);
+          if (ls) {
+            ls.getAudioTracks().forEach(t => {
+              if (!t.enabled) { t.enabled = true; log("ICE: force-unmuted local audio"); }
+            });
+          }
+        }
+        forceUnmuteAll();
+        // Also force unmute after short delays (handles late track arrival)
+        setTimeout(forceUnmuteAll, 100);
+        setTimeout(forceUnmuteAll, 500);
+        setTimeout(forceUnmuteAll, 1000);
+        setTimeout(forceUnmuteAll, 2000);
       }
 
       if (state === "failed") {
