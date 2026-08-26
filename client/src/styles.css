@@ -2347,11 +2347,13 @@ html.low-end .spin {
   position: absolute;
   inset: 0;
   background: #000;
+  z-index: 1;
 }
 .call-remote-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 1;
 }
 .call-local-video {
   position: absolute;
