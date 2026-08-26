@@ -104,104 +104,84 @@ export function CallUI({
     });
   }, [localStream, connectionState]);
 
-  // CRITICAL FIX: Persistent audio/video retry that NEVER stops until call ends
-  // This handles ALL edge cases: late tracks, mobile autoplay, visibility changes, etc.
+  // CRITICAL FIX: Persistent audio/video retry that NEVER stops until unmount
+  // Uses a single useEffect that runs ONCE — no dependency restarts, no cleanup gaps
+  const audioRetryActiveRef = useRef(false);
   useEffect(() => {
     if (!call) return;
-    let active = true;
+    // Prevent double-init (React strict mode or re-render)
+    if (audioRetryActiveRef.current) return;
+    audioRetryActiveRef.current = true;
 
     function tryAttachAll() {
-      if (!active) return;
+      if (!audioRetryActiveRef.current) return;
 
-      // --- Audio ---
       const aEl = remoteAudioRef.current;
       const rs = remoteStreamRef.current;
-      if (aEl && rs) {
-        // Force-enable all remote audio tracks every time
+      const ls = localStreamRef.current;
+
+      // Force-enable ALL audio tracks on BOTH sides every tick
+      if (rs) {
         rs.getAudioTracks().forEach(t => {
-          if (!t.enabled) {
-            t.enabled = true;
-            log("retry: force-unmuted remote audio");
-          }
+          if (!t.enabled) { t.enabled = true; log("retry: force-unmuted remote audio"); }
         });
+      }
+      if (ls) {
+        ls.getAudioTracks().forEach(t => {
+          if (!t.enabled) { t.enabled = true; log("retry: force-unmuted local audio"); }
+        });
+      }
 
-        // Force-enable all local audio tracks too (other side can't hear us if muted)
-        const ls = localStreamRef.current;
-        if (ls) {
-          ls.getAudioTracks().forEach(t => {
-            if (!t.enabled) {
-              t.enabled = true;
-              log("retry: force-unmuted local audio");
-            }
-          });
-        }
-
-        // Always forcefully unmute the audio element (some browsers re-mute it)
+      // Audio element: force unmute, attach stream, force play
+      if (aEl && rs) {
         aEl.muted = false;
         aEl.volume = 1;
-
-        // Attach stream if changed
         if (aEl.srcObject !== rs) {
           aEl.srcObject = rs;
-          log("retry: audio srcObject re-attached, tracks:", rs.getTracks().map(t => `${t.kind}:${t.readyState}:${t.enabled}`));
+          log("retry: audio srcObject attached, tracks:", rs.getTracks().map(t => `${t.kind}:${t.readyState}:${t.enabled}`));
         }
-
-        // Always try to play
         if (aEl.paused || aEl.ended) {
           aEl.play().then(() => {
-            if (active) {
+            if (audioRetryActiveRef.current) {
               setAudioBlocked(false);
               log("retry: audio PLAYING");
             }
           }).catch(() => {
-            // Autoplay blocked — show tap hint
-            if (active) setAudioBlocked(true);
+            if (audioRetryActiveRef.current) setAudioBlocked(true);
           });
         } else {
-          // Already playing
-          if (active) setAudioBlocked(false);
+          if (audioRetryActiveRef.current) setAudioBlocked(false);
         }
       }
 
-      // --- Video ---
+      // Remote video
       const rvEl = remoteVideoRef.current;
       if (rvEl && rs) {
-        if (rvEl.srcObject !== rs) {
-          rvEl.srcObject = rs;
-          log("retry: remote video re-attached");
-        }
+        if (rvEl.srcObject !== rs) { rvEl.srcObject = rs; }
         if (rvEl.paused || rvEl.ended || rvEl.readyState < 2) {
           rvEl.play().then(() => log("retry: remote video PLAYING")).catch(() => {});
         }
       }
+      // Local video
       const lvEl = localVideoRef.current;
-      const ls = localStreamRef.current;
       if (lvEl && ls) {
-        if (lvEl.srcObject !== ls) {
-          lvEl.srcObject = ls;
-        }
+        if (lvEl.srcObject !== ls) { lvEl.srcObject = ls; }
       }
     }
 
-    // Run immediately, then every 150ms forever (until call ends)
-    tryAttachAll();
+    // Run every 150ms forever — never stops until component unmounts
     const intervalId = setInterval(tryAttachAll, 150);
 
-    // Also re-try when page becomes visible again (user switched tabs/apps)
-    function onVisibility() {
-      if (document.visibilityState === "visible") {
-        log("page visible again — re-attaching audio");
-        tryAttachAll();
-      }
-    }
-    document.addEventListener("visibilitychange", onVisibility);
+    // Also retry when page becomes visible (user switched apps)
+    const onVis = () => { if (document.visibilityState === "visible") tryAttachAll(); };
+    document.addEventListener("visibilitychange", onVis);
 
     return () => {
-      active = false;
+      audioRetryActiveRef.current = false;
       clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("visibilitychange", onVis);
     };
-  }, [call?.id, call?.status, connectionState]); // Re-run when call changes
+  }, []); // EMPTY deps — runs ONCE on mount, cleanup on unmount only
 
   // Log state changes
   useEffect(() => {
@@ -292,7 +272,7 @@ export function CallUI({
   return (
     <>
       {/* Hidden audio — always renders, always plays remote stream */}
-      <audio ref={remoteAudioRef} autoPlay playsInline muted={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0.01, pointerEvents: "none" }} />
+      <audio key="yo-call-audio" ref={remoteAudioRef} autoPlay playsInline muted={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0.01, pointerEvents: "none" }} />
 
       {/* Call overlay — entire screen is a tap target */}
       <div
