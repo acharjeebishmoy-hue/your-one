@@ -39,6 +39,7 @@ export function useCall(userId) {
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
   const localStreamRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const activeCallRef = useRef(null);
   const processedAnswerRef = useRef(false);
   const processedCandidatesRef = useRef(new Set());
@@ -52,6 +53,7 @@ export function useCall(userId) {
 
   // Keep refs in sync
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
+  useEffect(() => { remoteStreamRef.current = remoteStream; }, [remoteStream]);
 
   function doCleanup() {
     log("cleanup");
@@ -61,6 +63,7 @@ export function useCall(userId) {
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     setLocalStream(null);
     setRemoteStream(null);
+    remoteStreamRef.current = null;
     setActiveCall(null);
     setCallDuration(0);
     setConnectionState("idle");
@@ -129,6 +132,8 @@ export function useCall(userId) {
   async function getLocalMedia(video = false) {
     if (localStreamRef.current) {
       const s = localStreamRef.current;
+      // CRITICAL: Always ensure audio tracks are enabled when reusing stream
+      s.getAudioTracks().forEach(t => { if (!t.enabled) t.enabled = true; });
       if (video && !s.getVideoTracks().length) {
         try {
           const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
@@ -142,7 +147,9 @@ export function useCall(userId) {
       audio: true,
       video: video ? { width: 640, height: 480, facingMode: "user" } : false,
     });
-    log("got stream", stream.getTracks().map(t => t.kind).join(", "));
+    // CRITICAL: Ensure all audio tracks are enabled immediately
+    stream.getAudioTracks().forEach(t => { t.enabled = true; });
+    log("got stream", stream.getTracks().map(t => `${t.kind}:${t.enabled}`).join(", "));
     localStreamRef.current = stream;
     setLocalStream(stream);
     return stream;
@@ -175,13 +182,30 @@ export function useCall(userId) {
       log("ICE gathering:", pc.iceGatheringState);
     };
 
+    // CRITICAL FIX: Handle ontrack properly to prevent track loss
+    // When e.streams[0] is null (tracks arrive separately), merge into one stream
     pc.ontrack = (e) => {
-      log("!!! ontrack !!!", e.streams[0]?.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
-      if (e.streams[0]) {
+      const trackInfo = `${e.track.kind}:${e.track.readyState}:${e.track.enabled}`;
+      log("!!! ontrack !!!", trackInfo, "streams:", e.streams?.length);
+
+      if (e.streams && e.streams[0]) {
         setRemoteStream(e.streams[0]);
+        remoteStreamRef.current = e.streams[0];
       } else {
-        const s = new MediaStream([e.track]);
-        setRemoteStream(s);
+        // No stream — tracks arriving separately, must merge into one MediaStream
+        const existing = remoteStreamRef.current;
+        if (existing) {
+          if (!existing.getTracks().find(t => t.id === e.track.id)) {
+            existing.addTrack(e.track);
+            log("merged track into existing stream:", trackInfo);
+          }
+          setRemoteStream(existing);
+        } else {
+          const s = new MediaStream([e.track]);
+          remoteStreamRef.current = s;
+          setRemoteStream(s);
+          log("created new stream with track:", trackInfo);
+        }
       }
     };
 
@@ -193,6 +217,14 @@ export function useCall(userId) {
         log("!!! ICE CONNECTED !!!");
         setConnectionState("connected");
         retryCountRef.current = 0; // reset retries on success
+        // CRITICAL: After ICE connects, force-enable ALL audio tracks
+        // This handles the case where tracks were muted before ICE connected
+        setTimeout(() => {
+          const rs = remoteStreamRef.current;
+          if (rs) rs.getAudioTracks().forEach(t => { if (!t.enabled) { t.enabled = true; log("ICE connected: force-unmuted remote audio"); } });
+          const ls = localStreamRef.current;
+          if (ls) ls.getAudioTracks().forEach(t => { if (!t.enabled) { t.enabled = true; log("ICE connected: force-unmuted local audio"); } });
+        }, 500);
       }
 
       if (state === "failed") {
@@ -267,7 +299,7 @@ export function useCall(userId) {
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    const d = await api.post("/api/calls/start", { calleeId, offer: pc.localDescription.toJSON() });
+    const d = await api.post("/api/calls/start", { calleeId, offer: pc.localDescription.toJSON(), video });
     log("call created, id:", d.callId);
     callIdRef.current = d.callId;
     peerRef.current = calleeId;
@@ -345,13 +377,29 @@ export function useCall(userId) {
       const vt = stream.getVideoTracks()[0];
       pcRef.current.addTrack(vt, localStreamRef.current);
       localStreamRef.current?.addTrack(vt);
-      setLocalStream(Object.assign(Object.create(Object.getPrototypeOf(localStreamRef.current)), localStreamRef.current));
+      // Force new stream reference so React picks up the change
+      const newTracks = localStreamRef.current.getTracks();
+      const newStream = new MediaStream(newTracks);
+      localStreamRef.current = newStream;
+      setLocalStream(newStream);
       setActiveCall(p => p ? { ...p, video: true } : p);
     } catch {}
   }
 
-  function toggleMute() { const s = localStreamRef.current; if (s) { const t = s.getAudioTracks()[0]; if (t) t.enabled = !t.enabled; } }
-  function toggleCamera() { const s = localStreamRef.current; if (s) { const t = s.getVideoTracks()[0]; if (t) t.enabled = !t.enabled; } }
+  function toggleMute() {
+    const s = localStreamRef.current;
+    if (s) {
+      const t = s.getAudioTracks()[0];
+      if (t) { t.enabled = !t.enabled; log("mic", t.enabled ? "unmuted" : "muted"); }
+    }
+  }
+  function toggleCamera() {
+    const s = localStreamRef.current;
+    if (s) {
+      const t = s.getVideoTracks()[0];
+      if (t) { t.enabled = !t.enabled; log("camera", t.enabled ? "on" : "off"); }
+    }
+  }
 
   function startDurationTimer() {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -414,9 +462,10 @@ export function useCall(userId) {
             // Pre-warm mic so answer is instant
             try {
               const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+              s.getAudioTracks().forEach(t => { t.enabled = true; });
               localStreamRef.current = s;
               setLocalStream(s);
-              log("mic pre-warmed");
+              log("mic pre-warmed, tracks:", s.getTracks().map(t => `${t.kind}:${t.enabled}`).join(","));
             } catch { log("mic pre-warm failed"); }
 
           // Case 2: Our call was answered (caller receives answer)
