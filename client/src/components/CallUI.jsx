@@ -89,39 +89,54 @@ export function CallUI({
     }
   }, [call?.status]);
 
-  // Attach remoteStream to audio — retry aggressively until it plays
+  // Re-attach audio/video streams with retry (handles late-arriving tracks and mode switches)
   useEffect(() => {
-    if (!remoteStream) { log("no remoteStream yet"); return; }
-    log("remoteStream received, tracks:", remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
+    if (!remoteStream && !localStream) return;
+    let cleared = false;
 
-    function tryAttach() {
-      const el = remoteAudioRef.current;
-      if (!el) return;
-      el.srcObject = remoteStream;
-      el.play().then(() => {
-        log("audio PLAYING!");
-        setAudioBlocked(false);
-      }).catch(e => {
-        log("audio play blocked:", e.message);
-        setAudioBlocked(true);
-      });
+    function tryAttachAll() {
+      // Audio: try until it plays
+      const aEl = remoteAudioRef.current;
+      if (aEl && remoteStream) {
+        if (aEl.srcObject !== remoteStream) {
+          aEl.srcObject = remoteStream;
+          log("audio srcObject attached, tracks:", remoteStream.getTracks().map(t=>t.kind+":"+t.readyState));
+        }
+        aEl.play().then(() => { if (!cleared) setAudioBlocked(false); })
+               .catch(() => { if (!cleared) setAudioBlocked(true); });
+      }
+      // Remote video
+      const rvEl = remoteVideoRef.current;
+      if (rvEl && remoteStream) {
+        if (rvEl.srcObject !== remoteStream) {
+          rvEl.srcObject = remoteStream;
+          log("remote video srcObject attached, tracks:",
+            remoteStream.getTracks().map(t => t.kind + ":" + t.readyState));
+        }
+        if (rvEl.readyState < 2) {
+          rvEl.play().then(() => log("remote video PLAYING")).catch(()=>{});
+        }
+      }
+      // Local video
+      const lvEl = localVideoRef.current;
+      if (lvEl && localStream) {
+        if (lvEl.srcObject !== localStream) {
+          lvEl.srcObject = localStream;
+          log("local video srcObject attached");
+        }
+      }
     }
 
-    tryAttach();
-    const t = setInterval(tryAttach, 300);
-    return () => clearInterval(t);
-  }, [remoteStream]);
-
-  // Attach to video elements
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(() => {});
-    }
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [remoteStream, localStream]);
+    // Retry loop: keep trying until audio is playing and videos are attached
+    // This handles the race where React re-renders the <video> elements after
+    // the stream was already assigned (e.g. upgrading from audio-only to video)
+    tryAttachAll();
+    const t = setInterval(() => {
+      if (cleared) return;
+      tryAttachAll();
+    }, 300);
+    return () => { cleared = true; clearInterval(t); };
+  }, [remoteStream, localStream, call?.video, connectionState]);
 
   // Log state changes
   useEffect(() => {
