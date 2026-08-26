@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Avatar } from "./Avatar.jsx";
 import { formatCallDuration } from "../webrtc.js";
 
@@ -20,17 +20,27 @@ export function CallUI({
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
-  const [audioBlocked, setAudioBlocked] = useState(false);
+  const remoteStreamRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const [audioBlocked, setAudioBlocked] = useState(true); // Start as blocked until proven playing
   const ringIntervalRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  // Keep refs in sync so the retry loop always has the latest streams
+  useEffect(() => { remoteStreamRef.current = remoteStream; }, [remoteStream]);
+  useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
 
   // Vibrate + ringtone when incoming call arrives
   useEffect(() => {
     const isRinging = call?.status === "ringing" && !call?.isCaller;
     if (!isRinging) {
-      // Stop vibration and ringtone
       if (ringIntervalRef.current) {
         clearInterval(ringIntervalRef.current);
         ringIntervalRef.current = null;
+      }
+      if (audioCtxRef.current) {
+        try { audioCtxRef.current.close(); } catch {}
+        audioCtxRef.current = null;
       }
       return;
     }
@@ -40,41 +50,35 @@ export function CallUI({
       navigator.vibrate(pattern);
       ringIntervalRef.current = setInterval(() => navigator.vibrate(pattern), 2000);
     }
-    // Also try to play a ringtone using Web Audio API
+    // Ringtone via Web Audio API
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = ctx;
       function playRing() {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 440;
-        osc.type = "sine";
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.5);
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 440;
+          osc.type = "sine";
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.5);
+        } catch {}
       }
       playRing();
       const ringTone = setInterval(playRing, 1500);
-      // Merge cleanup
-      const orig = ringIntervalRef.current;
-      ringIntervalRef.current = setInterval(() => {
-        navigator.vibrate?.(pattern);
-      }, 2000);
-      // Store cleanup for both
       return () => {
         clearInterval(ringTone);
-        clearInterval(ringIntervalRef.current);
-        ringIntervalRef.current = null;
+        if (ringIntervalRef.current) { clearInterval(ringIntervalRef.current); ringIntervalRef.current = null; }
         try { ctx.close(); } catch {}
+        audioCtxRef.current = null;
       };
     } catch {}
     return () => {
-      if (ringIntervalRef.current) {
-        clearInterval(ringIntervalRef.current);
-        ringIntervalRef.current = null;
-      }
+      if (ringIntervalRef.current) { clearInterval(ringIntervalRef.current); ringIntervalRef.current = null; }
     };
   }, [call?.status, call?.isCaller]);
 
@@ -89,52 +93,92 @@ export function CallUI({
     }
   }, [call?.status]);
 
-  // Re-attach audio/video streams with retry (handles late-arriving tracks and mode switches)
+  // CRITICAL FIX: Ensure local mic is always unmuted so other side can hear us
+  useEffect(() => {
+    if (!localStream) return;
+    // Make sure all audio tracks are enabled (unmuted)
+    localStream.getAudioTracks().forEach(t => {
+      if (!t.enabled) {
+        t.enabled = true;
+        log("force-unmuted local audio track");
+      }
+    });
+  }, [localStream, connectionState]);
+
+  // CRITICAL FIX: Aggressive audio/video attachment with refs and faster retry
+  // Uses refs so it always has the latest streams even if React hasn't re-rendered
   useEffect(() => {
     if (!remoteStream && !localStream) return;
     let cleared = false;
 
-    function tryAttachAll() {
-      // Audio: try until it plays
-      const aEl = remoteAudioRef.current;
-      if (aEl && remoteStream) {
-        if (aEl.srcObject !== remoteStream) {
-          aEl.srcObject = remoteStream;
-          log("audio srcObject attached, tracks:", remoteStream.getTracks().map(t=>t.kind+":"+t.readyState));
+    function ensureAudioPlays() {
+      const el = remoteAudioRef.current;
+      const stream = remoteStreamRef.current;
+      if (!el || !stream) return;
+
+      // Make sure all remote audio tracks are enabled
+      stream.getAudioTracks().forEach(t => {
+        if (!t.enabled) {
+          t.enabled = true;
+          log("force-unmuted remote audio track");
         }
-        aEl.play().then(() => { if (!cleared) setAudioBlocked(false); })
-               .catch(() => { if (!cleared) setAudioBlocked(true); });
+      });
+
+      // Attach stream if changed
+      if (el.srcObject !== stream) {
+        el.srcObject = stream;
+        log("audio srcObject attached, tracks:", stream.getTracks().map(t => t.kind + ":" + t.readyState + ":" + t.enabled));
       }
+
+      // Always try to play
+      if (el.paused || el.ended) {
+        el.play().then(() => {
+          if (!cleared) {
+            setAudioBlocked(false);
+            log("audio PLAYING!");
+          }
+        }).catch(() => {
+          if (!cleared) setAudioBlocked(true);
+        });
+      } else {
+        if (!cleared) setAudioBlocked(false);
+      }
+    }
+
+    function ensureVideoPlays() {
       // Remote video
       const rvEl = remoteVideoRef.current;
-      if (rvEl && remoteStream) {
-        if (rvEl.srcObject !== remoteStream) {
-          rvEl.srcObject = remoteStream;
-          log("remote video srcObject attached, tracks:",
-            remoteStream.getTracks().map(t => t.kind + ":" + t.readyState));
+      const rStream = remoteStreamRef.current;
+      if (rvEl && rStream) {
+        if (rvEl.srcObject !== rStream) {
+          rvEl.srcObject = rStream;
+          log("remote video attached, tracks:", rStream.getTracks().map(t => t.kind + ":" + t.readyState));
         }
-        if (rvEl.readyState < 2) {
-          rvEl.play().then(() => log("remote video PLAYING")).catch(()=>{});
+        if (rvEl.paused || rvEl.ended || rvEl.readyState < 2) {
+          rvEl.play().then(() => log("remote video PLAYING")).catch(() => {});
         }
       }
       // Local video
       const lvEl = localVideoRef.current;
-      if (lvEl && localStream) {
-        if (lvEl.srcObject !== localStream) {
-          lvEl.srcObject = localStream;
-          log("local video srcObject attached");
+      const lStream = localStreamRef.current;
+      if (lvEl && lStream) {
+        if (lvEl.srcObject !== lStream) {
+          lvEl.srcObject = lStream;
+          log("local video attached");
         }
       }
     }
 
-    // Retry loop: keep trying until audio is playing and videos are attached
-    // This handles the race where React re-renders the <video> elements after
-    // the stream was already assigned (e.g. upgrading from audio-only to video)
-    tryAttachAll();
+    // Retry aggressively: every 100ms for the first 5s, then every 500ms
+    ensureAudioPlays();
+    ensureVideoPlays();
+    let count = 0;
     const t = setInterval(() => {
       if (cleared) return;
-      tryAttachAll();
-    }, 300);
+      ensureAudioPlays();
+      ensureVideoPlays();
+      count++;
+    }, count < 50 ? 100 : 500);
     return () => { cleared = true; clearInterval(t); };
   }, [remoteStream, localStream, call?.video, connectionState]);
 
@@ -151,14 +195,50 @@ export function CallUI({
     }
   }, [connectionState, onEnd]);
 
-  function handleUnmute() {
+  // CRITICAL: handleUnmute also unmutes local mic so the OTHER side can hear
+  const handleUnmute = useCallback(() => {
+    // Unmute remote audio playback
     const el = remoteAudioRef.current;
     if (el) {
       el.muted = false;
       el.volume = 1;
-      el.play().then(() => { setAudioBlocked(false); log("unmuted & playing"); }).catch(() => {});
+      el.play().then(() => { setAudioBlocked(false); log("remote audio unmuted & playing"); }).catch(() => {});
     }
-  }
+    // ALSO unmute local mic — this is the key fix for one-way audio
+    const ls = localStreamRef.current;
+    if (ls) {
+      ls.getAudioTracks().forEach(t => {
+        if (!t.enabled) {
+          t.enabled = true;
+          log("unmuted local mic via tap");
+        }
+        // Also ensure it's not muted at the track level
+        if (t.muted) {
+          log("track was muted, unmuting");
+        }
+      });
+    }
+    // Also try to ensure remote audio tracks are enabled
+    const rs = remoteStreamRef.current;
+    if (rs) {
+      rs.getAudioTracks().forEach(t => {
+        if (!t.enabled) {
+          t.enabled = true;
+          log("unmuted remote audio track via tap");
+        }
+      });
+    }
+    // Ensure video is playing too
+    const rvEl = remoteVideoRef.current;
+    if (rvEl && remoteStreamRef.current) {
+      rvEl.srcObject = remoteStreamRef.current;
+      rvEl.play().catch(() => {});
+    }
+    const lvEl = localVideoRef.current;
+    if (lvEl && localStreamRef.current) {
+      lvEl.srcObject = localStreamRef.current;
+    }
+  }, []);
 
   if (!call) return null;
 
@@ -191,7 +271,7 @@ export function CallUI({
       {/* Hidden audio — always renders, always plays remote stream */}
       <audio ref={remoteAudioRef} autoPlay playsInline muted={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0.01, pointerEvents: "none" }} />
 
-      {/* No scary banners — entire screen is a tap target for audio */}
+      {/* Call overlay — entire screen is a tap target */}
       <div
         className={`call-overlay ${isVideo && !isRinging ? "call-video" : ""}`}
         onClick={handleUnmute}
@@ -213,6 +293,19 @@ export function CallUI({
             </div>
             <div className="call-name">{otherName}</div>
             <div className="call-status">{statusText}</div>
+            {/* Show tap hint when connected but audio is blocked (mobile autoplay) */}
+            {connectionState === "connected" && audioBlocked && (
+              <div className="call-tap-hint" style={{
+                color: '#fff',
+                fontSize: 14,
+                marginTop: 12,
+                opacity: 0.8,
+                animation: 'pulse 1.5s infinite',
+                textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              }}>
+                Tap anywhere to hear
+              </div>
+            )}
           </div>
         )}
 
