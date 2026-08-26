@@ -22,7 +22,7 @@ export function CallUI({
   const remoteAudioRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const localStreamRef = useRef(null);
-  const [audioBlocked, setAudioBlocked] = useState(true); // Start as blocked until proven playing
+  const [audioBlocked, setAudioBlocked] = useState(true);
   const ringIntervalRef = useRef(null);
   const audioCtxRef = useRef(null);
 
@@ -93,10 +93,9 @@ export function CallUI({
     }
   }, [call?.status]);
 
-  // CRITICAL FIX: Ensure local mic is always unmuted so other side can hear us
+  // CRITICAL: Force-enable local mic on every state change
   useEffect(() => {
     if (!localStream) return;
-    // Make sure all audio tracks are enabled (unmuted)
     localStream.getAudioTracks().forEach(t => {
       if (!t.enabled) {
         t.enabled = true;
@@ -105,82 +104,104 @@ export function CallUI({
     });
   }, [localStream, connectionState]);
 
-  // CRITICAL FIX: Aggressive audio/video attachment with refs and faster retry
-  // Uses refs so it always has the latest streams even if React hasn't re-rendered
+  // CRITICAL FIX: Persistent audio/video retry that NEVER stops until call ends
+  // This handles ALL edge cases: late tracks, mobile autoplay, visibility changes, etc.
   useEffect(() => {
-    if (!remoteStream && !localStream) return;
-    let cleared = false;
+    if (!call) return;
+    let active = true;
 
-    function ensureAudioPlays() {
-      const el = remoteAudioRef.current;
-      const stream = remoteStreamRef.current;
-      if (!el || !stream) return;
+    function tryAttachAll() {
+      if (!active) return;
 
-      // Make sure all remote audio tracks are enabled
-      stream.getAudioTracks().forEach(t => {
-        if (!t.enabled) {
-          t.enabled = true;
-          log("force-unmuted remote audio track");
-        }
-      });
-
-      // Attach stream if changed
-      if (el.srcObject !== stream) {
-        el.srcObject = stream;
-        log("audio srcObject attached, tracks:", stream.getTracks().map(t => t.kind + ":" + t.readyState + ":" + t.enabled));
-      }
-
-      // Always try to play
-      if (el.paused || el.ended) {
-        el.play().then(() => {
-          if (!cleared) {
-            setAudioBlocked(false);
-            log("audio PLAYING!");
+      // --- Audio ---
+      const aEl = remoteAudioRef.current;
+      const rs = remoteStreamRef.current;
+      if (aEl && rs) {
+        // Force-enable all remote audio tracks every time
+        rs.getAudioTracks().forEach(t => {
+          if (!t.enabled) {
+            t.enabled = true;
+            log("retry: force-unmuted remote audio");
           }
-        }).catch(() => {
-          if (!cleared) setAudioBlocked(true);
         });
-      } else {
-        if (!cleared) setAudioBlocked(false);
-      }
-    }
 
-    function ensureVideoPlays() {
-      // Remote video
+        // Force-enable all local audio tracks too (other side can't hear us if muted)
+        const ls = localStreamRef.current;
+        if (ls) {
+          ls.getAudioTracks().forEach(t => {
+            if (!t.enabled) {
+              t.enabled = true;
+              log("retry: force-unmuted local audio");
+            }
+          });
+        }
+
+        // Always forcefully unmute the audio element (some browsers re-mute it)
+        aEl.muted = false;
+        aEl.volume = 1;
+
+        // Attach stream if changed
+        if (aEl.srcObject !== rs) {
+          aEl.srcObject = rs;
+          log("retry: audio srcObject re-attached, tracks:", rs.getTracks().map(t => `${t.kind}:${t.readyState}:${t.enabled}`));
+        }
+
+        // Always try to play
+        if (aEl.paused || aEl.ended) {
+          aEl.play().then(() => {
+            if (active) {
+              setAudioBlocked(false);
+              log("retry: audio PLAYING");
+            }
+          }).catch(() => {
+            // Autoplay blocked — show tap hint
+            if (active) setAudioBlocked(true);
+          });
+        } else {
+          // Already playing
+          if (active) setAudioBlocked(false);
+        }
+      }
+
+      // --- Video ---
       const rvEl = remoteVideoRef.current;
-      const rStream = remoteStreamRef.current;
-      if (rvEl && rStream) {
-        if (rvEl.srcObject !== rStream) {
-          rvEl.srcObject = rStream;
-          log("remote video attached, tracks:", rStream.getTracks().map(t => t.kind + ":" + t.readyState));
+      if (rvEl && rs) {
+        if (rvEl.srcObject !== rs) {
+          rvEl.srcObject = rs;
+          log("retry: remote video re-attached");
         }
         if (rvEl.paused || rvEl.ended || rvEl.readyState < 2) {
-          rvEl.play().then(() => log("remote video PLAYING")).catch(() => {});
+          rvEl.play().then(() => log("retry: remote video PLAYING")).catch(() => {});
         }
       }
-      // Local video
       const lvEl = localVideoRef.current;
-      const lStream = localStreamRef.current;
-      if (lvEl && lStream) {
-        if (lvEl.srcObject !== lStream) {
-          lvEl.srcObject = lStream;
-          log("local video attached");
+      const ls = localStreamRef.current;
+      if (lvEl && ls) {
+        if (lvEl.srcObject !== ls) {
+          lvEl.srcObject = ls;
         }
       }
     }
 
-    // Retry aggressively: every 100ms for the first 5s, then every 500ms
-    ensureAudioPlays();
-    ensureVideoPlays();
-    let count = 0;
-    const t = setInterval(() => {
-      if (cleared) return;
-      ensureAudioPlays();
-      ensureVideoPlays();
-      count++;
-    }, count < 50 ? 100 : 500);
-    return () => { cleared = true; clearInterval(t); };
-  }, [remoteStream, localStream, call?.video, connectionState]);
+    // Run immediately, then every 150ms forever (until call ends)
+    tryAttachAll();
+    const intervalId = setInterval(tryAttachAll, 150);
+
+    // Also re-try when page becomes visible again (user switched tabs/apps)
+    function onVisibility() {
+      if (document.visibilityState === "visible") {
+        log("page visible again — re-attaching audio");
+        tryAttachAll();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [call?.id, call?.status, connectionState]); // Re-run when call changes
 
   // Log state changes
   useEffect(() => {
@@ -195,40 +216,42 @@ export function CallUI({
     }
   }, [connectionState, onEnd]);
 
-  // CRITICAL: handleUnmute also unmutes local mic so the OTHER side can hear
+  // CRITICAL: Tap handler — forcefully unmutes everything and plays audio
   const handleUnmute = useCallback(() => {
     // Unmute remote audio playback
     const el = remoteAudioRef.current;
     if (el) {
       el.muted = false;
       el.volume = 1;
-      el.play().then(() => { setAudioBlocked(false); log("remote audio unmuted & playing"); }).catch(() => {});
+      // Force play — this is called from user gesture so autoplay policy allows it
+      el.play().then(() => {
+        setAudioBlocked(false);
+        log("tap: audio unmuted & playing");
+      }).catch(e => {
+        log("tap: audio play failed:", e.message);
+      });
     }
-    // ALSO unmute local mic — this is the key fix for one-way audio
+    // Force-enable local mic — the OTHER side can't hear us if muted
     const ls = localStreamRef.current;
     if (ls) {
       ls.getAudioTracks().forEach(t => {
         if (!t.enabled) {
           t.enabled = true;
-          log("unmuted local mic via tap");
-        }
-        // Also ensure it's not muted at the track level
-        if (t.muted) {
-          log("track was muted, unmuting");
+          log("tap: unmuted local mic");
         }
       });
     }
-    // Also try to ensure remote audio tracks are enabled
+    // Force-enable remote audio tracks
     const rs = remoteStreamRef.current;
     if (rs) {
       rs.getAudioTracks().forEach(t => {
         if (!t.enabled) {
           t.enabled = true;
-          log("unmuted remote audio track via tap");
+          log("tap: unmuted remote audio track");
         }
       });
     }
-    // Ensure video is playing too
+    // Also try to ensure video is playing
     const rvEl = remoteVideoRef.current;
     if (rvEl && remoteStreamRef.current) {
       rvEl.srcObject = remoteStreamRef.current;
@@ -297,9 +320,12 @@ export function CallUI({
             {connectionState === "connected" && audioBlocked && (
               <div className="call-tap-hint" style={{
                 color: '#fff',
-                fontSize: 14,
-                marginTop: 12,
-                opacity: 0.8,
+                fontSize: 16,
+                fontWeight: 600,
+                marginTop: 16,
+                padding: '12px 24px',
+                background: 'rgba(0,0,0,0.4)',
+                borderRadius: 12,
                 animation: 'pulse 1.5s infinite',
                 textShadow: '0 1px 3px rgba(0,0,0,0.3)',
               }}>
