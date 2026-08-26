@@ -258,7 +258,7 @@ export function useCall(userId) {
         log("!!! ICE FAILED !!! retry:", retryCountRef.current);
         if (retryCountRef.current < MAX_RETRIES) {
           retryCountRef.current++;
-          setConnectionState("connecting"); // show "reconnecting" to user
+          setConnectionState("connecting");
           log("auto-restarting ICE in", ICE_RESTART_DELAY, "ms (attempt", retryCountRef.current, ")");
           setTimeout(() => restartICE(), ICE_RESTART_DELAY);
         } else {
@@ -269,8 +269,6 @@ export function useCall(userId) {
 
       if (state === "disconnected") {
         log("ICE disconnected — waiting for recovery...");
-        // Don't end immediately — network might recover (farmer walking back to WiFi)
-        // Start a timer: if still disconnected after 10s, try ICE restart
         setTimeout(() => {
           if (pcRef.current && pcRef.current.iceConnectionState === "disconnected") {
             log("ICE still disconnected after 10s — attempting ICE restart");
@@ -284,6 +282,25 @@ export function useCall(userId) {
             }
           }
         }, 10000);
+      }
+
+      // FIX: Handle ICE stuck in "checking" — no change for 15s means ICE is deadlocked
+      if (state === "checking" || state === "new") {
+        setTimeout(() => {
+          if (pcRef.current &&
+              (pcRef.current.iceConnectionState === "checking" || pcRef.current.iceConnectionState === "new") &&
+              activeCallRef.current?.status !== "ended") {
+            log("ICE stuck in", pcRef.current.iceConnectionState, "for 15s — auto-restarting");
+            if (retryCountRef.current < MAX_RETRIES) {
+              retryCountRef.current++;
+              setConnectionState("connecting");
+              restartICE();
+            } else {
+              log("ICE stuck too long, ending call");
+              setConnectionState("failed");
+            }
+          }
+        }, 15000);
       }
     };
 
@@ -504,6 +521,20 @@ export function useCall(userId) {
               processedAnswerRef.current = true;
               pollModeRef.current = "active";
               setConnectionState("connecting"); // wait for ICE to complete
+
+              // SAFETY: If ICE doesn't connect within 20s, auto-restart or fail
+              setTimeout(() => {
+                if (pcRef.current && pcRef.current.iceConnectionState !== "connected" && pcRef.current.iceConnectionState !== "completed" && activeCallRef.current?.status !== "ended") {
+                  log("Caller: ICE stuck after 20s, state:", pcRef.current.iceConnectionState);
+                  if (retryCountRef.current < MAX_RETRIES) {
+                    retryCountRef.current++;
+                    setConnectionState("connecting");
+                    restartICE();
+                  } else {
+                    setConnectionState("failed");
+                  }
+                }
+              }, 20000);
 
               // Add callee's ICE candidates
               if (c.candidates?.length) {
