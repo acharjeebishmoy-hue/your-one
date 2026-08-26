@@ -751,6 +751,7 @@ input, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: tr
   animation: fade 0.15s ease;
 }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
 .modal {
   background: var(--card);
   border-radius: 16px;
