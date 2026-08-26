@@ -1207,19 +1207,19 @@ app.get("/api/calls/stream", (req, res) => {
 app.post("/api/calls/start", wrap(async (req, res) => {
   const user = await deviceUser(req);
   if (!user?.name) return res.status(400).json({ error: "Pick a name first" });
-  const { calleeId, offer } = req.body;
+  const { calleeId, offer, video } = req.body;
   if (!calleeId || !offer) return res.status(400).json({ error: "Missing calleeId or offer" });
   // Check if callee exists
   const callee = await db.prepare("SELECT id, name FROM users WHERE id = ?").get(calleeId);
   if (!callee) return res.status(404).json({ error: "User not found" });
   // End any existing active calls for either party
   await db.prepare("UPDATE calls SET status = 'ended', ended_at = NOW() WHERE status IN ('ringing', 'active') AND (caller_id = ? OR callee_id = ? OR caller_id = ? OR callee_id = ?)").run(user.id, user.id, calleeId, calleeId);
-  const result = await db.prepare("INSERT INTO calls (caller_id, callee_id, status, offer) VALUES (?, ?, 'ringing', ?) RETURNING id").run(user.id, calleeId, JSON.stringify(offer));
+  const result = await db.prepare("INSERT INTO calls (caller_id, callee_id, status, offer, video) VALUES (?, ?, 'ringing', ?, ?) RETURNING id").run(user.id, calleeId, JSON.stringify(offer), !!video);
   // Notify callee instantly via SSE
   broadcastToUser(calleeId, {
     type: "incoming", callId: result.lastInsertRowid, callerId: user.id,
     callerName: user.name, callerAvatar: user.avatar,
-    offer, candidates: [],
+    offer, candidates: [], video: !!video,
   });
   // Real push notification — works even when app is closed.
   // type=call triggers loud vibration + persistent notification on the farmer's phone.
@@ -1322,6 +1322,7 @@ app.get("/api/calls/poll", wrap(async (req, res) => {
       answer: call.answer ? JSON.parse(call.answer) : null,
       candidates: JSON.parse(call.candidates || '[]'),
       isCaller: call.caller_id === user.id,
+      video: !!call.video,
       startedAt: call.started_at,
     }
   });
