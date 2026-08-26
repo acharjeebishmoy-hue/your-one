@@ -406,7 +406,7 @@ export function useCall(userId) {
             pollModeRef.current = "setup";
             setConnectionState("ringing");
             setActiveCall({
-              id: c.id, status: "ringing", isCaller: false, video: false,
+              id: c.id, status: "ringing", isCaller: false, video: !!c.video,
               otherUserId: c.callerId,
               otherUser: { name: c.callerName, avatar: c.callerAvatar },
               offer: c.offer, candidates: c.candidates || [],
